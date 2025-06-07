@@ -190,7 +190,8 @@ VkAccelerationStructureBuildSizesInfoKHR MVKAccelerationStructure::getBuildSizes
     
     MTLAccelerationStructureDescriptor* descriptor = populateMTLDescriptor(device, *info, nullptr, maxPrimitiveCounts);
 
-    MTLAccelerationStructureSizes sizes = [device->getMTLDevice() accelerationStructureSizesWithDescriptor:descriptor];
+    MVKPhysicalDevice* mtlPhysicalDevice = device->getPhysicalDevice();
+    MTLAccelerationStructureSizes sizes = [mtlPhysicalDevice->getMTLDevice() accelerationStructureSizesWithDescriptor:descriptor];
     vkBuildSizes.accelerationStructureSize = sizes.accelerationStructureSize;
     vkBuildSizes.buildScratchSize = sizes.buildScratchBufferSize;
     vkBuildSizes.updateScratchSize = sizes.refitScratchBufferSize;

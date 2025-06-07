@@ -1,7 +1,7 @@
 /*
  * MVKCmdRendering.h
  *
- * Copyright (c) 2015-2024 The Brenwill Workshop Ltd. (http://www.brenwill.com)
+ * Copyright (c) 2015-2025 The Brenwill Workshop Ltd. (http://www.brenwill.com)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -535,6 +535,19 @@ protected:
 #pragma mark MVKCmdSetPolygonMode
 
 class MVKCmdSetPolygonMode : public MVKSingleValueCommand<VkPolygonMode> {
+
+public:
+	void encode(MVKCommandEncoder* cmdEncoder) override;
+
+protected:
+	MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
+};
+
+
+#pragma mark -
+#pragma mark MVKCmdSetLineRasterizationMode
+
+class MVKCmdSetLineRasterizationMode : public MVKSingleValueCommand<VkLineRasterizationMode> {
 
 public:
 	void encode(MVKCommandEncoder* cmdEncoder) override;
