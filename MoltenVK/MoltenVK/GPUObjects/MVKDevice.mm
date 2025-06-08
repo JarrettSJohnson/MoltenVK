@@ -752,6 +752,15 @@ void MVKPhysicalDevice::getFeatures(VkPhysicalDeviceFeatures2* features) {
 				shaderIntFuncsFeatures->shaderIntegerFunctions2 = true;
 				break;
 			}
+			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR: {
+				auto* accelStructFeatures = (VkPhysicalDeviceAccelerationStructureFeaturesKHR*)next;
+				accelStructFeatures->accelerationStructure = true; //_metalFeatures.accelerationStructures;
+				accelStructFeatures->accelerationStructureHostCommands = false; // Not supported in Metal
+				accelStructFeatures->accelerationStructureCaptureReplay = false; // Not supported in Metal
+				accelStructFeatures->accelerationStructureIndirectBuild = false; // Not supported in Metal
+				accelStructFeatures->descriptorBindingAccelerationStructureUpdateAfterBind = false; // Not supported in Metal
+				break;
+			}
 			default:
 				break;
 		}
