@@ -198,6 +198,8 @@ id<MTLBuffer> MVKBuffer::getMTLBuffer() {
 																  options: _deviceMemory->getMTLResourceOptions()
 																   offset: _deviceMemoryOffset];	// retained
 			getDevice()->makeResident(_mtlBuffer);
+			getDevice()->addAddressableBufferRange(this);
+
 			propagateDebugName();
 			return _mtlBuffer;
 		} else {
@@ -297,6 +299,7 @@ void MVKBuffer::detachMemory() {
 	if (_deviceMemory) { _deviceMemory->removeBuffer(this); }
 	_deviceMemory = nullptr;
 	if (_mtlBuffer) getDevice()->removeResidency(_mtlBuffer);
+	getDevice()->removeAddressableBufferRange(this);
 	[_mtlBuffer release];
 	_mtlBuffer = nil;
 	if (_mtlBufferCache) getDevice()->removeResidency(_mtlBufferCache);

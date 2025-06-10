@@ -21,6 +21,7 @@
 #include "MVKDevice.h"
 #include "MVKCommand.h"
 #include "MVKSmallVector.h"
+#include "MVKCmdQueries.h"
 
 #import <Metal/Metal.h>
 #import <Metal/MTLAccelerationStructure.h>
@@ -87,8 +88,7 @@ public:
 protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
     
-    id<MTLAccelerationStructure> _srcAccelerationStructure;
-    id<MTLBuffer> _srcAccelerationStructureBuffer;
+    MVKAccelerationStructure* _srcAccelerationStructure;
     MVKBuffer* _dstBuffer;
     uint64_t _copySize;
     
@@ -125,7 +125,7 @@ protected:
 #pragma mark -
 #pragma mark MVKCmdWriteAccelerationStructuresProperties
 
-class MVKCmdWriteAccelerationStructuresProperties: public MVKCommand {
+class MVKCmdWriteAccelerationStructuresProperties: public MVKCmdQuery {
     
 public:
     VkResult setContent(MVKCommandBuffer* cmdBuff,
@@ -140,8 +140,6 @@ protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
     
     uint32_t _accelerationStructureCount;
-    const MVKAccelerationStructure* _pAccelerationStructures;
+    MVKSmallVector<MVKAccelerationStructure*, 1> _accelerationStructures;
     VkQueryType _queryType;
-    VkQueryPool _queryPool;
-    uint32_t _firstQuery;
 };

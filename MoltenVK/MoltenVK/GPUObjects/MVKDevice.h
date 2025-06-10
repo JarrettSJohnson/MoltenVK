@@ -778,13 +778,16 @@ public:
 
 	/** Log all performance statistics. */
 	void logPerformanceSummary();
-    
-    /** Returns a pointer to the buffer at the provided address*/
+
+    /** Returns a pointer to the buffer at the provided address. */
     MVKBuffer* getBufferAtAddress(uint64_t address);
-    
-    /** Returns a pointer to the acceleration structure at the provided address*/
+
+    /** Returns a pointer to the acceleration structure at the provided address. */
     MVKAccelerationStructure* getAccelerationStructureAtAddress(uint64_t address);
 
+    void addAddressableBufferRange(MVKBuffer* mvkBuff);
+
+	void removeAddressableBufferRange(MVKBuffer* mvkBuff);
 
 #pragma mark Metal
 

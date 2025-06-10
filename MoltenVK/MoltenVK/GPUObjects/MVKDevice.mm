@@ -4291,6 +4291,28 @@ VkAccelerationStructureCompatibilityKHR MVKDevice::getAccelerationStructureCompa
     return VK_ACCELERATION_STRUCTURE_COMPATIBILITY_INCOMPATIBLE_KHR;
 }
 
+void MVKDevice::addAddressableBufferRange(MVKBuffer* mvkBuff)
+{
+	if (!mvkBuff) { return; }
+
+	_gpuBufferAddressMap->addEntry({
+	    mvkBuff->getMTLBufferGPUAddress(),
+	    mvkBuff->getByteCount(),
+	    mvkBuff
+	});
+}
+
+void MVKDevice::removeAddressableBufferRange(MVKBuffer* mvkBuff)
+{
+	if (!mvkBuff) { return; }
+
+	_gpuBufferAddressMap->removeEntry({
+	    mvkBuff->getMTLBufferGPUAddress(),
+	    mvkBuff->getByteCount(),
+	    mvkBuff
+	});
+}
+
 VkExtent2D MVKDevice::getDynamicRenderAreaGranularity() {
     if (_physicalDevice->_metalFeatures.tileBasedDeferredRendering) {
         // This is the tile area.
@@ -4517,6 +4539,10 @@ MVKQueryPool* MVKDevice::createQueryPool(const VkQueryPoolCreateInfo* pCreateInf
 			return new MVKTimestampQueryPool(this, pCreateInfo);
 		case VK_QUERY_TYPE_PIPELINE_STATISTICS:
 			return new MVKPipelineStatisticsQueryPool(this, pCreateInfo);
+		case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR:
+			return new MVKAccelerationStructureCompactedSizeQueryPool(this, pCreateInfo);
+		case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR:
+			return new MVKAccelerationStructureSerializationSizeQueryPool(this, pCreateInfo);
 		default:
             return new MVKUnsupportedQueryPool(this, pCreateInfo);
 	}
@@ -4559,7 +4585,7 @@ void MVKDevice::destroyPipelineLayout(MVKPipelineLayout* mvkPLL,
 
 MVKAccelerationStructure* MVKDevice::createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR* pCreateInfo,
                                                                  const VkAllocationCallbacks*                pAllocator) {
-    return addAccelerationStructure(new MVKAccelerationStructure(this));
+    return addAccelerationStructure(new MVKAccelerationStructure(this, pCreateInfo));
 }
 
 void MVKDevice::destroyAccelerationStructure(MVKAccelerationStructure*     mvkAccStruct,
@@ -4800,11 +4826,6 @@ MVKBuffer* MVKDevice::addBuffer(MVKBuffer* mvkBuff) {
 	_resources.push_back(mvkBuff);
 	if (mvkIsAnyFlagEnabled(mvkBuff->getUsage(), VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT)) {
 		_gpuAddressableBuffers.push_back(mvkBuff);
-        _gpuBufferAddressMap->addEntry({
-            mvkBuff->getMTLBufferGPUAddress(),
-            mvkBuff->getByteCount(),
-            mvkBuff
-        });
 	}
 	return mvkBuff;
 }
@@ -4884,18 +4905,29 @@ MVKAccelerationStructure* MVKDevice::addAccelerationStructure(MVKAccelerationStr
 }
 
 void MVKDevice::removeAccelerationStructure(MVKAccelerationStructure* accStruct) {
-    std::unordered_map<uint64_t, MVKAccelerationStructure*>::iterator accStructIt = _gpuAccStructAddressMap.find(accStruct->getDeviceAddress());
-    uint64_t addressOffset = accStructIt->second->getMTLSize();
-    _gpuAccStructAddressMap.erase(accStructIt);
+    uint64_t removedAddress = accStruct->getDeviceAddress();
+    auto findIt = _gpuAccStructAddressMap.find(removedAddress);
 
-    // This can lead to fragmentation over time, so I'll just push all keys after this back
-    // This, however is also another performance issue
-    for(auto it = accStructIt; it != _gpuAccStructAddressMap.end(); it++)
-    {
-        auto extractedAccStruct = _gpuAccStructAddressMap.extract(it->first);
-        extractedAccStruct.key() = it->first - addressOffset;
-        _gpuAccStructAddressMap.insert(std::move(extractedAccStruct));
-        _gpuAccStructAddressMap.erase(it->first);
+    if (findIt == _gpuAccStructAddressMap.end()) {
+        return;
+    }
+
+    uint64_t addressOffset = findIt->second->getMTLSize();
+    _gpuAccStructAddressMap.erase(findIt); // Erase the element
+
+    std::vector<std::pair<uint64_t, MVKAccelerationStructure*>> elementsToUpdate;
+    for (const auto& [address, acc] : _gpuAccStructAddressMap) {
+        if (address > removedAddress) {
+            elementsToUpdate.push_back({address, acc});
+        }
+    }
+
+    for (const auto& [oldAddress, acc] : elementsToUpdate) {
+        _gpuAccStructAddressMap.erase(oldAddress);
+        uint64_t newAddress = oldAddress - addressOffset;
+        _gpuAccStructAddressMap[newAddress] = acc;
+        // TODO: Do I need to update the address within the accStruct object itself
+        // acc->setDeviceAddress(newAddress);
     }
 }
 

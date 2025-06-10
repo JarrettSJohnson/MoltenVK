@@ -56,13 +56,10 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
     {
         VkAccelerationStructureBuildGeometryInfoKHR& buildInfo = entry.info;
 
-        MVKAccelerationStructure* mvkSrcAccStruct = (MVKAccelerationStructure*)buildInfo.srcAccelerationStructure;
         MVKAccelerationStructure* mvkDstAccStruct = (MVKAccelerationStructure*)buildInfo.dstAccelerationStructure;
 
-        id<MTLAccelerationStructure> srcAccStruct = mvkSrcAccStruct->getMTLAccelerationStructure();
         id<MTLAccelerationStructure> dstAccStruct = mvkDstAccStruct->getMTLAccelerationStructure();
         
-        id<MTLHeap> srcAccStructHeap = mvkSrcAccStruct->getMTLHeap();
         id<MTLHeap> dstAccStructHeap = mvkDstAccStruct->getMTLHeap();
         
         // Should we throw an error here?
@@ -94,6 +91,10 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
         }
         else if (buildInfo.mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR)
         {
+            MVKAccelerationStructure* mvkSrcAccStruct = (MVKAccelerationStructure*)buildInfo.srcAccelerationStructure;
+            id<MTLAccelerationStructure> srcAccStruct = mvkSrcAccStruct->getMTLAccelerationStructure();
+            id<MTLHeap> srcAccStructHeap = mvkSrcAccStruct->getMTLHeap();
+
             MTLAccelerationStructureDescriptor* descriptor = [MTLAccelerationStructureDescriptor new];
             
             if (mvkIsAnyFlagEnabled(buildInfo.flags, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR))
@@ -151,19 +152,23 @@ VkResult MVKCmdCopyAccelerationStructureToMemory::setContent(MVKCommandBuffer*  
     _dstAddress = dstAddress;
     _copyMode = copyMode;
     
-    MVKAccelerationStructure* mvkSrcAccStruct = (MVKAccelerationStructure*)srcAccelerationStructure;
-    _srcAccelerationStructure = mvkSrcAccStruct->getMTLAccelerationStructure();
+    _srcAccelerationStructure = (MVKAccelerationStructure*)srcAccelerationStructure;
     
-
-    _dstBuffer = _mvkDevice->getBufferAtAddress(_dstAddress);
+    auto* device = cmdBuff->getDevice();
+    _dstBuffer = device->getBufferAtAddress(_dstAddress);
     return VK_SUCCESS;
 }
                                         
 void MVKCmdCopyAccelerationStructureToMemory::encode(MVKCommandEncoder* cmdEncoder) {
     id<MTLBlitCommandEncoder> blitEncoder = cmdEncoder->getMTLBlitEncoder(kMVKCommandUseCopyAccelerationStructureToMemory);
-    _mvkDevice = cmdEncoder->getDevice();
-    
-    [blitEncoder copyFromBuffer:_srcAccelerationStructureBuffer sourceOffset:0 toBuffer:_dstBuffer->getMTLBuffer() destinationOffset:0 size:_copySize];
+
+    auto* asBuffer = _srcAccelerationStructure->getMTLBuffer();
+
+    [blitEncoder copyFromBuffer: asBuffer
+                   sourceOffset: 0
+                       toBuffer: _dstBuffer->getMTLBuffer()
+              destinationOffset: 0
+                           size: _copySize];
 }
 
 #pragma mark -
@@ -200,37 +205,80 @@ VkResult MVKCmdWriteAccelerationStructuresProperties::setContent(MVKCommandBuffe
                     VkQueryType queryType,
                     VkQueryPool queryPool,
                     uint32_t firstQuery) {
-    
+
+    VkResult rslt = MVKCmdQuery::setContent(cmdBuff, queryPool, firstQuery);
+
     _accelerationStructureCount = accelerationStructureCount;
-    _pAccelerationStructures = (const MVKAccelerationStructure*)pAccelerationStructures;
+    _accelerationStructures.clear();
+    _accelerationStructures.reserve(accelerationStructureCount);
+    for (uint32_t i = 0; i < accelerationStructureCount; i++) {
+        auto* mvkAS = (MVKAccelerationStructure*)pAccelerationStructures[i];
+        _accelerationStructures.push_back(mvkAS);
+    }
     _queryType = queryType;
-    _queryPool = queryPool;
-    _firstQuery = firstQuery;
-    return VK_SUCCESS;
+    return rslt;
 }
 
 void MVKCmdWriteAccelerationStructuresProperties::encode(MVKCommandEncoder* cmdEncoder) {
-    
-    for(int i = 0; i < _accelerationStructureCount; i++)
-    {
-        if(!_pAccelerationStructures[i].getBuildStatus()) {
-            return;
-        }
-        
-        // actually finish up the meat of the code here
-    }
-    
+
     switch(_queryType)
     {
         case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SIZE_KHR:
             break;
         case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_BOTTOM_LEVEL_POINTERS_KHR:
             break;
-        case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR:
+        case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR: {
+            id<MTLAccelerationStructureCommandEncoder> accStructEncoder = cmdEncoder->getMTLAccelerationStructureEncoder(kMVKCommandUseWriteAccelerationStructuresProperties);
+            auto* queryPool = (MVKAccelerationStructureCompactedSizeQueryPool*)_queryPool;
+            id<MTLBuffer> resultsBuffer = queryPool->getResultsBuffer();
+            for (uint32_t i = 0; i < _accelerationStructureCount; i++) {
+                MVKAccelerationStructure* mvkAS = _accelerationStructures[i];
+                if (!mvkAS) { continue; }
+
+                id<MTLAccelerationStructure> mtlAS = mvkAS->getMTLAccelerationStructure();
+                if (!mtlAS) { continue; }
+
+
+                auto queryOffset = (_query + i) * sizeof(uint64_t);
+
+                [accStructEncoder writeCompactedAccelerationStructureSize:mtlAS
+                                                                 toBuffer:resultsBuffer
+                                                                   offset:queryOffset
+                                                             sizeDataType:MTLDataTypeULong];
+            }
+        }
             break;
-        case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR:
+        case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR: {
+            id<MTLBlitCommandEncoder> blitEncoder = cmdEncoder->getMTLBlitEncoder(kMVKCommandUseCopyQueryPoolResults);
+            auto* queryPool = (MVKAccelerationStructureSerializationSizeQueryPool*)_queryPool;
+            id<MTLBuffer> resultsBuffer = queryPool->getResultsBuffer();
+            for (uint32_t i = 0; i < _accelerationStructureCount; i++) {
+                MVKAccelerationStructure* mvkAS = _accelerationStructures[i];
+                if (!mvkAS) { continue; }
+
+                id<MTLAccelerationStructure> mtlAS = mvkAS->getMTLAccelerationStructure();
+                if (!mtlAS) { continue; }
+
+                auto queryOffset = (_query + i) * sizeof(uint64_t);
+
+                uint64_t serializationSize = [mtlAS size];
+
+                const MVKMTLBufferAllocation* tempAlloc = cmdEncoder->copyToTempMTLBufferAllocation(&serializationSize, sizeof(serializationSize));
+
+                [blitEncoder copyFromBuffer: tempAlloc->_mtlBuffer
+                               sourceOffset: tempAlloc->_offset
+                                   toBuffer: resultsBuffer
+                          destinationOffset: queryOffset
+                                       size: sizeof(uint64_t)];
+            }     
+        }
             break;
         default:
             break;
     }
+    cmdEncoder->writeAccelerationStructureProperties(_queryPool,
+                                                     _query,
+                                                     _accelerationStructureCount,
+                                                     _queryType,
+                                                     MVKArrayRef{_accelerationStructures.data(), _accelerationStructures.size()});
 }

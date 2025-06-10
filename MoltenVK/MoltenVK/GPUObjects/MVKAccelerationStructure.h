@@ -87,17 +87,26 @@ public:
     
     /** Gets the address of the acceleration structure*/
     uint64_t getDeviceAddress() const { return _address; }
+
+    /** Returns the type of acceleration structure */
+    VkAccelerationStructureTypeKHR getType() const { return _type; }
     
     /** Returns the Metal buffer using the same memory as the acceleration structure*/
     id<MTLBuffer> getMTLBuffer() const { return _buffer; }
-    
+
+    /** Returns the offset into the buffer where the acceleration structure is stored */
+    uint64_t getBufferOffset() const { return _bufferOffset; }
+
+    /** Returns the size of the acceleration structure in bytes */
+    uint64_t getAccelerationStructureSize() const { return _size; }
+
     /** Gets the heap allocation that the acceleration structure, and buffer share*/
     id<MTLHeap> getMTLHeap() const { return _heap; }
     
     MTLAccelerationStructureTriangleGeometryDescriptor* getTriangleDescriptor();
 #pragma mark -
 #pragma mark Construction
-    MVKAccelerationStructure(MVKDevice* device);
+    MVKAccelerationStructure(MVKDevice* device, const VkAccelerationStructureCreateInfoKHR* pCreateInfo);
     void destroy() override;
 protected:
     void propagateDebugName() override {}
@@ -105,6 +114,9 @@ protected:
     id<MTLHeap> _heap;
     id<MTLAccelerationStructure> _accelerationStructure;
     id<MTLBuffer> _buffer;
+    uint64_t _bufferOffset = 0;
+    uint64_t _size = 0;
+    VkAccelerationStructureTypeKHR _type;
     
     bool _allowUpdate = false;
     bool _built = false;

@@ -1767,4 +1767,8 @@ void MVKPixelFormats::setFormatProperties(MVKVkFormatDesc& vkDesc, const MVKMTLD
 		enableFormatFeatures(Atomic, Buf, mtlPixFmtCaps, vkProps.bufferFeatures);
 		enableFormatFeatures(Vertex, Buf, getMTLVertexFormatDesc(vkDesc.mtlVertexFormat).mtlFmtCaps, vkProps.bufferFeatures);
 	}
+
+	if (vkDesc.vkFormat == VK_FORMAT_R32G32B32_SFLOAT) {
+        mvkEnableFlags(vkProps.bufferFeatures, VK_FORMAT_FEATURE_2_ACCELERATION_STRUCTURE_VERTEX_BUFFER_BIT_KHR);
+    }
 }

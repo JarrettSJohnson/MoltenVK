@@ -438,11 +438,13 @@ public:
 	void barrierWait(MVKBarrierStage stage, id<MTLRenderCommandEncoder> mtlEncoder, MTLRenderStages beforeStages);
 	void barrierWait(MVKBarrierStage stage, id<MTLBlitCommandEncoder> mtlEncoder);
 	void barrierWait(MVKBarrierStage stage, id<MTLComputeCommandEncoder> mtlEncoder);
+	void barrierWait(MVKBarrierStage stage, id<MTLAccelerationStructureCommandEncoder> mtlEncoder);
 
 	/** Encode update for a specific stage in given encoder. */
 	void barrierUpdate(MVKBarrierStage stage, id<MTLRenderCommandEncoder> mtlEncoder, MTLRenderStages afterStages);
 	void barrierUpdate(MVKBarrierStage stage, id<MTLBlitCommandEncoder> mtlEncoder);
 	void barrierUpdate(MVKBarrierStage stage, id<MTLComputeCommandEncoder> mtlEncoder);
+	void barrierUpdate(MVKBarrierStage stage, id<MTLAccelerationStructureCommandEncoder> mtlEncoder);
 
 #pragma mark Queries
 
@@ -457,6 +459,13 @@ public:
 
     /** Reset a range of queries. */
     void resetQueries(MVKQueryPool* pQueryPool, uint32_t firstQuery, uint32_t queryCount);
+
+    /** Writes acceleration structure properties to a query pool. */
+    void writeAccelerationStructureProperties(MVKQueryPool* queryPool,
+                                              uint32_t firstQuery,
+                                              uint32_t accelerationStructureCount,
+                                              VkQueryType queryType,
+                                              MVKArrayRef<MVKAccelerationStructure*> accelerationStructures);
 
 #pragma mark Dynamic encoding state accessed directly
 

@@ -101,10 +101,10 @@ typedef enum : uint8_t {
 	kMVKCommandConvertUint8Indices,             /**< Converting a Uint8 index buffer to Uint16. */
 	kMVKCommandUseRecordGPUCounterSample,        /**< Any command triggering the recording of a GPU counter sample. */
     kMVKCommandUseBuildAccelerationStructure,        /**< vkCmdBuiildAccelerationStructure - Builds an acceleration structure */
-    kMVKCommandUseCopyAccelerationStructure,         /**< vkCmdCopyAccelerationStructure- Copies an acceleration structure to another acceleration structure*/
-    kMVKCommandUseCopyAccelerationStructureToMemory, /**< vkCmdCopyAccelerationStructureToMemory - Copies and serializes an acceleration structure to a buffer*/
-    kMVKCommandUseCopyMemoryToAccelerationStructure, /**< vkCmdCopyMemoryToAccelerationStructure - Copies and deserializes an acceleration structure from a buffer*/
-    kMVKCommandUseWriteAccelerationStructuresProperties,
+    kMVKCommandUseCopyAccelerationStructure,         /**< vkCmdCopyAccelerationStructure- Copies an acceleration structure to another acceleration structure. */
+    kMVKCommandUseCopyAccelerationStructureToMemory, /**< vkCmdCopyAccelerationStructureToMemory - Copies and serializes an acceleration structure to a buffer. */
+    kMVKCommandUseCopyMemoryToAccelerationStructure, /**< vkCmdCopyMemoryToAccelerationStructure - Copies and deserializes an acceleration structure from a buffer. */
+    kMVKCommandUseWriteAccelerationStructuresProperties, /**< vkCmdWriteAccelerationStructuresPropertiesKHR - Copies various acceleration structure properties to a buffer. */
 } MVKCommandUse;
 
 /** Represents a given stage of a graphics pipeline. */

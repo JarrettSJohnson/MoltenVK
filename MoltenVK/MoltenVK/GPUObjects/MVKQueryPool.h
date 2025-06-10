@@ -243,6 +243,45 @@ protected:
 	void propagateDebugName() override {}
 };
 
+#pragma mark -
+#pragma mark MVKAccelerationStructureCompactedSizeQueryPool
+
+class MVKAccelerationStructureCompactedSizeQueryPool : public MVKQueryPool {
+
+public:
+	MVKAccelerationStructureCompactedSizeQueryPool(MVKDevice* device, const VkQueryPoolCreateInfo* pCreateInfo);
+
+	~MVKAccelerationStructureCompactedSizeQueryPool();
+
+	id<MTLBuffer> getResultsBuffer();
+
+	NSData* getQuerySourceData(uint32_t firstQuery, uint32_t queryCount) override;
+
+protected:
+	void propagateDebugName() override {}
+
+	id<MTLBuffer> _resultsBuffer = nil;
+};
+
+#pragma mark -
+#pragma mark MVKAccelerationStructureSerializationSizeQueryPool
+
+class MVKAccelerationStructureSerializationSizeQueryPool : public MVKQueryPool {
+
+public:
+	MVKAccelerationStructureSerializationSizeQueryPool(MVKDevice* device, const VkQueryPoolCreateInfo* pCreateInfo);
+
+	~MVKAccelerationStructureSerializationSizeQueryPool();
+
+	id<MTLBuffer> getResultsBuffer();
+
+	NSData* getQuerySourceData(uint32_t firstQuery, uint32_t queryCount) override;
+
+protected:
+	void propagateDebugName() override {}
+
+	id<MTLBuffer> _resultsBuffer = nil;
+};
 
 #pragma mark -
 #pragma mark MVKUnsupportedQueryPool
