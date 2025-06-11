@@ -244,39 +244,47 @@ uint64_t MVKAccelerationStructure::getMTLSize()
 MVKAccelerationStructure::MVKAccelerationStructure(MVKDevice* device,
                                                    const VkAccelerationStructureCreateInfoKHR* pCreateInfo) : MVKVulkanAPIDeviceObject(device)
 {
+    auto accSize = [getMTLDevice() heapAccelerationStructureSizeAndAlignWithSize:pCreateInfo->size];
+
     MTLHeapDescriptor* heapDescriptor = [MTLHeapDescriptor new];
+    heapDescriptor.type = MTLHeapTypePlacement;
     heapDescriptor.storageMode = MTLStorageModePrivate;
-//    heapDescriptor.size = getBuildSizes().accelerationStructureSize;
+    heapDescriptor.size = accSize.size;
+
     _heap = [getMTLDevice() newHeapWithDescriptor:heapDescriptor];
 
-    MVKBuffer* mvkBuff = (MVKBuffer*) pCreateInfo->buffer;
-    _buffer = mvkBuff->getMTLBuffer();
+    _sharedBuffer = (MVKBuffer*) pCreateInfo->buffer;
     _bufferOffset = pCreateInfo->offset;
     _size = pCreateInfo->size;
     _type = pCreateInfo->type;
 
-    _accelerationStructure = [getMTLDevice() newAccelerationStructureWithSize:_size];
+    // For now all resources will begin at beginning of heap.
+    // Ideally we'd get this from an AccelerationStructureHeapManager?
+    NSUInteger heapOffset = 0;
 
-    // switch (_type) {
-    //     case VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR: {
-    //         <MTLPrimitiveAccelerationStructureDescriptor> descriptor [MTLPrimitiveAccelerationStructureDescriptor new];
+    _accelerationStructure = [_heap newAccelerationStructureWithSize: accSize.size
+                                                              offset: heapOffset];
 
-    //         MTLAccelerationStructureTriangleGeometryDescriptor *geometryDescriptor = [MTLAccelerationStructureTriangleGeometryDescriptor new];
+    MTLResourceOptions options = MTLResourceStorageModePrivate;
+    _buffer = [_heap newBufferWithLength: _size
+                                 options: options
+                                  offset: heapOffset];
+}
 
-    //         _accelerationStructure = [getMTLDevice() newAccelerationStructureWithDescriptor:descriptor]
-    //     }
-    //         break;
-    //     case VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR:
-    //         break;
-    //     case VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR:
-    //         // use newAccelerationStructureWithSize
-    //         break;
-    //     default:
-    //         break;
-    // }
-    
-//    _accelerationStructure = [_heap newAccelerationStructureWithSize:getBuildSizes().accelerationStructureSize];
-//    _buffer = [_heap newBufferWithLength:getBuildSizes().accelerationStructureSize options:MTLResourceOptionCPUCacheModeDefault];
+void MVKAccelerationStructure::encodeCopyToSharedBuffer(MVKCommandEncoder* cmdEncoder)
+{
+    id<MTLBlitCommandEncoder> blitEncoder = cmdEncoder->getMTLBlitEncoder(kMVKCommandUseCopyAccelerationStructureToMemory);
+
+    [blitEncoder copyFromBuffer: _buffer
+                   sourceOffset: 0
+                       toBuffer: _sharedBuffer->getMTLBuffer()
+              destinationOffset: 0
+                           size: _size];
+}
+
+MVKArrayRef<MVKAccelerationStructure*> MVKAccelerationStructure::getBLASHandles()
+{
+    return MVKArrayRef<MVKAccelerationStructure*>(_blasHandles.data(), _blasHandles.size());
 }
 
 void MVKAccelerationStructure::destroy()

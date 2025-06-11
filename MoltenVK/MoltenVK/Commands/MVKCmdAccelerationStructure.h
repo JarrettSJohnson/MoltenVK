@@ -92,6 +92,8 @@ protected:
     MVKBuffer* _dstBuffer;
     uint64_t _copySize;
     
+    id<MTLBuffer> _stagingBuffer;
+
     uint64_t _dstAddress;
     MVKDevice* _mvkDevice;
     VkCopyAccelerationStructureModeKHR _copyMode;

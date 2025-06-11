@@ -104,6 +104,11 @@ public:
     id<MTLHeap> getMTLHeap() const { return _heap; }
     
     MTLAccelerationStructureTriangleGeometryDescriptor* getTriangleDescriptor();
+
+    void encodeCopyToSharedBuffer(MVKCommandEncoder* cmdEncoder);
+
+    MVKArrayRef<MVKAccelerationStructure*> getBLASHandles();
+
 #pragma mark -
 #pragma mark Construction
     MVKAccelerationStructure(MVKDevice* device, const VkAccelerationStructureCreateInfoKHR* pCreateInfo);
@@ -114,11 +119,14 @@ protected:
     id<MTLHeap> _heap;
     id<MTLAccelerationStructure> _accelerationStructure;
     id<MTLBuffer> _buffer;
+    MVKBuffer* _sharedBuffer; // From vkCreateBuffer
     uint64_t _bufferOffset = 0;
     uint64_t _size = 0;
     VkAccelerationStructureTypeKHR _type;
     
     bool _allowUpdate = false;
-    bool _built = false;
+    bool _built = false; // This will also determine if the allocated vkBuffer has cached AS
     uint64_t _address = 0;
+
+    MVKSmallVector<MVKAccelerationStructure*, 1> _blasHandles;
 };

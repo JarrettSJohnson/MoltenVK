@@ -60,8 +60,6 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
 
         id<MTLAccelerationStructure> dstAccStruct = mvkDstAccStruct->getMTLAccelerationStructure();
         
-        id<MTLHeap> dstAccStructHeap = mvkDstAccStruct->getMTLHeap();
-        
         // Should we throw an error here?
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBuildAccelerationStructuresKHR.html#VUID-vkCmdBuildAccelerationStructuresKHR-pInfos-03667
         if(buildInfo.mode == VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR && !mvkDstAccStruct->getAllowUpdate())
@@ -93,7 +91,6 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
         {
             MVKAccelerationStructure* mvkSrcAccStruct = (MVKAccelerationStructure*)buildInfo.srcAccelerationStructure;
             id<MTLAccelerationStructure> srcAccStruct = mvkSrcAccStruct->getMTLAccelerationStructure();
-            id<MTLHeap> srcAccStructHeap = mvkSrcAccStruct->getMTLHeap();
 
             MTLAccelerationStructureDescriptor* descriptor = [MTLAccelerationStructureDescriptor new];
             
@@ -106,6 +103,7 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
                                            scratchBuffer:scratchBuffer
                                      scratchBufferOffset:scratchBufferOffset];
         }
+        mvkDstAccStruct->encodeCopyToSharedBuffer(cmdEncoder);
     }
 }
 
@@ -145,6 +143,65 @@ void MVKCmdCopyAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
 #pragma mark -
 #pragma mark MVKCmdCopyAccelerationStructureToMemory
 
+//static constexpr uint32_t MVK_ACCELERATION_STRUCTURE_SERIALIZATION_VERSION = MVK_MAKE_VERSION(1, 0, 0);
+
+static std::size_t GetSerializedAccelerationStructureSize(MVKAccelerationStructure* mvkAS)
+{
+    std::size_t blasCount = 0;
+    std::size_t asSize = 768;
+
+    // Size of the serialized acceleration structure header.
+    std::size_t headerSize =
+        VK_UUID_SIZE + // VkPhysicalDeviceIDPropertiesKHR::deviceUUID
+        VK_UUID_SIZE + // MVK AS Serialization Version
+        sizeof(uint64_t) + // Total Serialization Size
+        sizeof(uint64_t) + // Total Deserialized Size
+        sizeof(uint64_t) + // BLAS Handle Count
+        sizeof(uint64_t) * blasCount + // BLAS Handles
+        asSize; // Size of the acceleration structure data
+
+    return headerSize;
+}
+
+static std::vector<uint8_t> CreateSerializedAccelerationStructure(MVKAccelerationStructure* mvkAS)
+{
+    uint64_t serializedSize = (uint64_t)GetSerializedAccelerationStructureSize(mvkAS);
+    uint64_t deserializedSize = 768;
+    uint64_t blasHandleCount = 0;
+
+    std::vector<uint8_t> serializedData(serializedSize);
+    uint8_t* pData = serializedData.data();
+
+    uint8_t driverUUID[VK_UUID_SIZE]{};
+    uint8_t accStrVersion[VK_UUID_SIZE]{};
+
+    memcpy(pData, &driverUUID, VK_UUID_SIZE);
+    pData += VK_UUID_SIZE;
+
+    memcpy(pData, &accStrVersion, VK_UUID_SIZE);
+    pData += VK_UUID_SIZE;
+
+    memcpy(pData, &serializedSize, sizeof(uint64_t));
+    pData += sizeof(uint64_t);
+
+    memcpy(pData, &deserializedSize, sizeof(uint64_t));
+    pData += sizeof(uint64_t);
+
+    memcpy(pData, &blasHandleCount, sizeof(uint64_t));
+    pData += sizeof(uint64_t);
+
+    memset(pData, 0, sizeof(uint64_t) * blasHandleCount); // Fill with BLAS handles (if any)
+    pData += sizeof(uint64_t) * blasHandleCount;
+
+    memset(pData, 0, deserializedSize); // Fill the rest with zeros (or actual data if available)
+    pData += deserializedSize;
+
+    pData = serializedData.data();
+    pData += VK_UUID_SIZE * 2 + sizeof(uint64_t);
+
+    return serializedData;
+}
+
 VkResult MVKCmdCopyAccelerationStructureToMemory::setContent(MVKCommandBuffer*                  cmdBuff,
                                                              VkAccelerationStructureKHR         srcAccelerationStructure,
                                                              uint64_t                           dstAddress,
@@ -153,8 +210,17 @@ VkResult MVKCmdCopyAccelerationStructureToMemory::setContent(MVKCommandBuffer*  
     _copyMode = copyMode;
     
     _srcAccelerationStructure = (MVKAccelerationStructure*)srcAccelerationStructure;
-    
+
+    auto serializedData = CreateSerializedAccelerationStructure(_srcAccelerationStructure);
+
+    _copySize = serializedData.size();
+
     auto* device = cmdBuff->getDevice();
+
+    _stagingBuffer = [cmdBuff->getMTLDevice() newBufferWithBytes: serializedData.data()
+                                                          length: _copySize
+                                                         options: MTLResourceStorageModeShared];
+
     _dstBuffer = device->getBufferAtAddress(_dstAddress);
     return VK_SUCCESS;
 }
@@ -162,9 +228,7 @@ VkResult MVKCmdCopyAccelerationStructureToMemory::setContent(MVKCommandBuffer*  
 void MVKCmdCopyAccelerationStructureToMemory::encode(MVKCommandEncoder* cmdEncoder) {
     id<MTLBlitCommandEncoder> blitEncoder = cmdEncoder->getMTLBlitEncoder(kMVKCommandUseCopyAccelerationStructureToMemory);
 
-    auto* asBuffer = _srcAccelerationStructure->getMTLBuffer();
-
-    [blitEncoder copyFromBuffer: asBuffer
+    [blitEncoder copyFromBuffer: _stagingBuffer
                    sourceOffset: 0
                        toBuffer: _dstBuffer->getMTLBuffer()
               destinationOffset: 0
@@ -181,7 +245,7 @@ VkResult MVKCmdCopyMemoryToAccelerationStructure::setContent(MVKCommandBuffer* c
     _srcAddress = srcAddress;
     _copyMode = copyMode;
     
-    _srcBuffer = _mvkDevice->getBufferAtAddress(_srcAddress);
+    _srcBuffer = cmdBuff->getDevice()->getBufferAtAddress(_srcAddress);
     
     MVKAccelerationStructure* mvkDstAccStruct = (MVKAccelerationStructure*)dstAccelerationStructure;
     _dstAccelerationStructure = mvkDstAccStruct->getMTLAccelerationStructure();
@@ -261,7 +325,7 @@ void MVKCmdWriteAccelerationStructuresProperties::encode(MVKCommandEncoder* cmdE
 
                 auto queryOffset = (_query + i) * sizeof(uint64_t);
 
-                uint64_t serializationSize = [mtlAS size];
+                uint64_t serializationSize = GetSerializedAccelerationStructureSize(mvkAS);
 
                 const MVKMTLBufferAllocation* tempAlloc = cmdEncoder->copyToTempMTLBufferAllocation(&serializationSize, sizeof(serializationSize));
 
