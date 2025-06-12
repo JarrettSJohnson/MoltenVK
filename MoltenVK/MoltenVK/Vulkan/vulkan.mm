@@ -3148,6 +3148,10 @@ MVK_PUBLIC_VULKAN_SYMBOL void vkCmdPushDescriptorSet2(
 		MVKAddCmd(PushDescriptorSet, commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pPushDescriptorSetInfo->layout,
 				pPushDescriptorSetInfo->set, pPushDescriptorSetInfo->descriptorWriteCount, pPushDescriptorSetInfo->pDescriptorWrites);
 	}
+	if (pPushDescriptorSetInfo->stageFlags & VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR) {
+		MVKAddCmd(PushDescriptorSet, commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pPushDescriptorSetInfo->layout,
+				pPushDescriptorSetInfo->set, pPushDescriptorSetInfo->descriptorWriteCount, pPushDescriptorSetInfo->pDescriptorWrites);
+	}
 	MVKTraceVulkanCallEnd();
 }
 

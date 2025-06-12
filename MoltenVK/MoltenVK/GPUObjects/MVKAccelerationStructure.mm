@@ -23,7 +23,7 @@
 #include <Metal/Metal.h>
 
 
-static MTLAttributeFormat mvkMTLAttributeFormatFromVkFormat(VkFormat format)
+static MTLAttributeFormat mvkMTLAttributeFormatFromVkFormatForAccelerationStructures(VkFormat format)
 {
     switch (format) {
         case VK_FORMAT_R32G32B32A32_SFLOAT:
@@ -100,7 +100,7 @@ MTLAccelerationStructureDescriptor* MVKAccelerationStructure::populateMTLDescrip
 
                         geometryTriangles.vertexStride = triangleData.vertexStride;
                         geometryTriangles.indexType = mvkMTLIndexTypeFromVkIndexType(triangleData.indexType);
-                        geometryTriangles.vertexFormat = mvkMTLAttributeFormatFromVkFormat(triangleData.vertexFormat);
+                        geometryTriangles.vertexFormat = mvkMTLAttributeFormatFromVkFormatForAccelerationStructures(triangleData.vertexFormat);
 
 
                         if (rangeInfos) {
@@ -193,9 +193,9 @@ MTLAccelerationStructureDescriptor* MVKAccelerationStructure::populateMTLDescrip
         {
             MTLInstanceAccelerationStructureDescriptor* instance = [MTLInstanceAccelerationStructureDescriptor new];
             // add bottom level acceleration structures
-            
+
+            instance.instanceCount = rangeInfos ? rangeInfos->primitiveCount : *maxPrimitiveCounts;
             instance.instanceDescriptorType = MTLAccelerationStructureInstanceDescriptorTypeDefault;
-            instance.instanceCount = buildInfo.geometryCount;
             instance.instanceDescriptorBufferOffset = 0;
             instance.instanceDescriptorStride = sizeof(MTLAccelerationStructureInstanceDescriptor);
 

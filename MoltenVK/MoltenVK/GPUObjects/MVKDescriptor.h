@@ -695,6 +695,46 @@ public:
 	VkDescriptorType getDescriptorType() override { return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER; }
 };
 
+#pragma mark -
+#pragma mark MVKAccelerationStructureDescriptor
+
+class MVKAccelerationStructureDescriptor : public MVKDescriptor {
+public:
+	void bind(MVKCommandEncoder* cmdEncoder,
+			  VkPipelineBindPoint pipelineBindPoint,
+			  MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			  uint32_t elementIndex,
+			  bool stages[],
+			  MVKShaderResourceBinding& mtlIndexes,
+			  MVKArrayRef<uint32_t> dynamicOffsets,
+			  uint32_t& dynamicOffsetIndex) override;
+
+	void write(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			   MVKDescriptorSet* mvkDescSet,
+			   uint32_t dstIdx,
+			   uint32_t srcIdx,
+			   size_t srcStride,
+			   const void* pData) override;
+
+	void read(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			  MVKDescriptorSet* mvkDescSet,
+			  uint32_t dstIndex,
+			  VkDescriptorImageInfo* pImageInfo,
+			  VkDescriptorBufferInfo* pBufferInfo,
+			  VkBufferView* pTexelBufferView,
+			  VkWriteDescriptorSetInlineUniformBlock* inlineUniformBlock) override;
+
+	void encodeResourceUsage(MVKResourcesCommandEncoderState* rezEncState,
+							 MVKDescriptorSetLayoutBinding* mvkDSLBind,
+							 MVKShaderStage stage) override;
+
+    VkDescriptorType getDescriptorType() override { return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR; }
+
+	void reset() override;
+private:
+
+};
+
 
 #pragma mark -
 #pragma mark Support functions

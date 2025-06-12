@@ -474,7 +474,7 @@ MVKPipelineStatisticsQueryPool::MVKPipelineStatisticsQueryPool(MVKDevice* device
 
 MVKAccelerationStructureCompactedSizeQueryPool::MVKAccelerationStructureCompactedSizeQueryPool(MVKDevice* device,
 																							   const VkQueryPoolCreateInfo* pCreateInfo) : MVKQueryPool(device, pCreateInfo, 1) {
-	if ( false ) {
+	if ( false ) { // TODO
 		setConfigurationResult(reportError(VK_ERROR_FEATURE_NOT_PRESENT, "vkCreateQueryPool: VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE is not supported."));
 	}
 	auto bufferSize = pCreateInfo->queryCount * sizeof(uint64_t);
@@ -504,7 +504,7 @@ NSData* MVKAccelerationStructureCompactedSizeQueryPool::getQuerySourceData(uint3
 
 MVKAccelerationStructureSerializationSizeQueryPool::MVKAccelerationStructureSerializationSizeQueryPool(MVKDevice* device,
 																									   const VkQueryPoolCreateInfo* pCreateInfo) : MVKQueryPool(device, pCreateInfo, 1) {
-	if ( false ) {
+	if ( false ) { // TODO - Serialization is almost done
 		setConfigurationResult(reportError(VK_ERROR_FEATURE_NOT_PRESENT, "vkCreateQueryPool: VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE is not supported."));
 	}
 	auto bufferSize = pCreateInfo->queryCount * sizeof(uint64_t);

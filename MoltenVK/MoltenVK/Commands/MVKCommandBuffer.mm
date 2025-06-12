@@ -577,6 +577,12 @@ static MVKBarrierStage commandUseToBarrierStage(MVKCommandUse use) {
 	case kMVKCommandUseAccumOcclusionQuery:          return kMVKBarrierStageNone; /**< Any command terminating a Metal render pass with active visibility buffer. */
 	case kMVKCommandConvertUint8Indices:             return kMVKBarrierStageCopy; /**< Converting a Uint8 index buffer to Uint16. */
 	case kMVKCommandUseRecordGPUCounterSample:       return kMVKBarrierStageNone; /**< Any command triggering the recording of a GPU counter sample. */
+	case kMVKCommandUseFillMTLInstanceBuffer:        return kMVKBarrierStageCompute; /**< Filling a Metal instance buffer with instance data. */
+	case kMVKCommandUseBuildAccelerationStructure:   return kMVKBarrierStageAccelerationStructureBuild; /**< vkCmdBuildAccelerationStructureKHR. */
+	case kMVKCommandUseCopyAccelerationStructure:    return kMVKBarrierStageAccelerationStructureBuild; /**< vkCmdCopyAccelerationStructureKHR. */
+	case kMVKCommandUseCopyAccelerationStructureToMemory:  return kMVKBarrierStageAccelerationStructureBuild; /**< vkCmdUpdateAccelerationStructureKHR. */
+	case kMVKCommandUseCopyMemoryToAccelerationStructure:  return kMVKBarrierStageAccelerationStructureBuild; /**< vkCmdUpdateAccelerationStructureKHR. */
+	case kMVKCommandUseWriteAccelerationStructuresProperties: return kMVKBarrierStageAccelerationStructureBuild; /**< vkCmdWriteAccelerationStructuresPropertiesKHR. */
 	}
 }
 
@@ -1507,6 +1513,7 @@ NSString* mvkMTLComputeCommandEncoderLabel(MVKCommandUse cmdUse) {
         case kMVKCommandUseCopyQueryPoolResults:            return @"vkCmdCopyQueryPoolResults ComputeEncoder";
         case kMVKCommandUseAccumOcclusionQuery:             return @"Post-render-pass occlusion query accumulation ComputeEncoder";
         case kMVKCommandConvertUint8Indices:                return @"Convert Uint8 indices to Uint16 ComputeEncoder";
+        case kMVKCommandUseFillMTLInstanceBuffer:           return @"Fill MTLInstanceBuffer ComputeEncoder";
         default:                                            return @"Unknown Use ComputeEncoder";
     }
 }

@@ -4185,6 +4185,8 @@ void MVKDevice::getDescriptorVariableDescriptorCountLayoutSupport(const VkDescri
 					maxVarDescCount = min(mtlFeats.maxPerStageTextureCount - mtlTexCnt,
 										  mtlFeats.maxPerStageSamplerCount - mtlSampCnt);
 					break;
+				case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+					break;
 				default:
 					break;
 			}

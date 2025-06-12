@@ -573,6 +573,10 @@ kernel void fillMTLInstanceDescriptors(device const VkAccelerationStructureInsta
                                        uint instanceIdx [[ thread_position_in_grid ]]) {                       \n\
     if (instanceIdx >= params.instanceCount) { return; }                                                       \n\
                                                                                                                \n\
+    device MTLAccelerationStructureInstanceDescriptor& testInstance = destDescriptors[instanceIdx];            \n\
+    testInstance.accelerationStructureIndex = 0;                                                               \n\
+    return;                                                                                                    \n\
+                                                                                                               \n\
     device const VkAccelerationStructureInstanceKHR& vkInstance = srcInstances[instanceIdx];                   \n\
                                                                                                                \n\
     uint32_t mtlBLASIndex = 0;                                                                                 \n\

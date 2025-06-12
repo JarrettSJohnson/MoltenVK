@@ -178,6 +178,10 @@ void mvkPopulateShaderConversionConfig(mvk::SPIRVToMSLConversionConfiguration& s
 			addResourceBinding(SampledImage);
 			break;
 
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			addResourceBinding(AccelerationStructure);
+			break;
+
 		default:
 			addResourceBinding(Unknown);
 			break;
@@ -1351,6 +1355,51 @@ void MVKTexelBufferDescriptor::reset() {
 	if (_mvkBufferView) { _mvkBufferView->release(); }
 	_mvkBufferView = nullptr;
 	MVKDescriptor::reset();
+}
+
+void MVKAccelerationStructureDescriptor::bind(MVKCommandEncoder* cmdEncoder,
+			VkPipelineBindPoint pipelineBindPoint,
+			MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			uint32_t elementIndex,
+			bool stages[],
+			MVKShaderResourceBinding& mtlIndexes,
+			MVKArrayRef<uint32_t> dynamicOffsets,
+			uint32_t& dynamicOffsetIndex)
+{
+
+}
+
+void MVKAccelerationStructureDescriptor::write(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			MVKDescriptorSet* mvkDescSet,
+			uint32_t dstIdx,
+			uint32_t srcIdx,
+			size_t srcStride,
+			const void* pData)
+{
+
+}
+
+void MVKAccelerationStructureDescriptor::read(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			MVKDescriptorSet* mvkDescSet,
+			uint32_t dstIndex,
+			VkDescriptorImageInfo* pImageInfo,
+			VkDescriptorBufferInfo* pBufferInfo,
+			VkBufferView* pTexelBufferView,
+			VkWriteDescriptorSetInlineUniformBlock* inlineUniformBlock)
+{
+
+}
+
+void MVKAccelerationStructureDescriptor::encodeResourceUsage(MVKResourcesCommandEncoderState* rezEncState,
+							MVKDescriptorSetLayoutBinding* mvkDSLBind,
+							MVKShaderStage stage)
+{
+	
+}
+
+void MVKAccelerationStructureDescriptor::reset()
+{
+
 }
 
 

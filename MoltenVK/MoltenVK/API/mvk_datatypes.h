@@ -338,6 +338,7 @@ typedef enum {
 	kMVKBarrierStageFragment,
 	kMVKBarrierStageCompute,
 	kMVKBarrierStageCopy,
+	kMVKBarrierStageAccelerationStructureBuild,
 	kMVKBarrierStageNone,
 	kMVKBarrierStageCount = kMVKBarrierStageNone
 } MVKBarrierStage;
