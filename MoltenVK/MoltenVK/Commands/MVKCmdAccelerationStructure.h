@@ -115,7 +115,7 @@ protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
     
     MVKBuffer* _srcBuffer;
-    id<MTLAccelerationStructure> _dstAccelerationStructure;
+    MVKAccelerationStructure* _dstAccelerationStructure;
     id<MTLBuffer> _dstAccelerationStructureBuffer;
     uint32_t _copySize;
     

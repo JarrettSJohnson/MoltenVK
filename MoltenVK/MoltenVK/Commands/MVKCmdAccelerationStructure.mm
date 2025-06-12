@@ -31,17 +31,38 @@ VkResult MVKCmdBuildAccelerationStructure::setContent(MVKCommandBuffer*         
                                                       uint32_t                                                infoCount,
                                                       const VkAccelerationStructureBuildGeometryInfoKHR*      pInfos,
                                                       const VkAccelerationStructureBuildRangeInfoKHR* const*  ppBuildRangeInfos) {
+    // _buildInfos.reserve(infoCount);
+    // for (uint32_t i = 0; i < infoCount; i++)
+    // {
+    //     MVKAccelerationStructureBuildInfo& info = _buildInfos.emplace_back();
+    //     info.info = pInfos[i];
+
+    //     // TODO: ppGeometries
+    //     info.geometries.resize(pInfos[i].geometryCount);
+    //     info.ranges.resize(pInfos[i].geometryCount);
+    //     memcpy(info.geometries.data(), pInfos[i].pGeometries, pInfos[i].geometryCount);
+    //     memcpy(info.ranges.data(), ppBuildRangeInfos[i], pInfos[i].geometryCount);
+
+    //     info.info.pGeometries = info.geometries.data();
+    // }
+
+    if (ppBuildRangeInfos) {
+        // TODO
+    }
+
+    // Clear any previous data and reserve space for the new entries.
+    _buildInfos.clear();
     _buildInfos.reserve(infoCount);
-    for (uint32_t i = 0; i < infoCount; i++)
-    {
+
+    for (uint32_t i = 0; i < infoCount; ++i) {
         MVKAccelerationStructureBuildInfo& info = _buildInfos.emplace_back();
+
         info.info = pInfos[i];
 
-        // TODO: ppGeometries
-        info.geometries.reserve(pInfos[i].geometryCount);
-        info.ranges.reserve(pInfos[i].geometryCount);
-        memcpy(info.geometries.data(), pInfos[i].pGeometries, pInfos[i].geometryCount);
-        memcpy(info.ranges.data(), ppBuildRangeInfos[i], pInfos[i].geometryCount);
+        if (pInfos[i].pGeometries) {
+            info.geometries.assign(pInfos[i].pGeometries, pInfos[i].pGeometries + pInfos[i].geometryCount);
+        }
+        info.ranges.assign(ppBuildRangeInfos[i], ppBuildRangeInfos[i] + pInfos[i].geometryCount);
 
         info.info.pGeometries = info.geometries.data();
     }
@@ -81,6 +102,29 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
                 entry.ranges.data(),
                 nullptr
             );
+
+            if (mvkDstAccStruct->getType() == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR) {
+                // Geometry count is always 1 for TLAS
+                const VkAccelerationStructureGeometryKHR& geometry = entry.geometries.front();
+                const VkAccelerationStructureBuildRangeInfoKHR& range = entry.ranges.front();
+                assert(geometry.geometryType == VK_GEOMETRY_TYPE_INSTANCES_KHR);
+                for (uint32_t i = 0; i < range.primitiveCount; i++) {
+                    uint64_t instanceDeviceAddress = geometry.geometry.instances.data.deviceAddress;
+                    MVKBuffer* instanceBuffer = mvkDevice->getBufferAtAddress(instanceDeviceAddress);
+                    uint8_t* instanceData = (uint8_t*)instanceBuffer->getMTLBuffer().contents;
+
+                    // TODO: Stalls--but we can improve later.
+                    VkAccelerationStructureInstanceKHR instance{};
+                    memcpy(&instance, instanceData + i * sizeof(VkAccelerationStructureInstanceKHR), sizeof(VkAccelerationStructureInstanceKHR));
+                    uint64_t deviceAddress = instance.accelerationStructureReference;
+                    MVKAccelerationStructure* mvkBlas = mvkDevice->getAccelerationStructureAtAddress(deviceAddress);
+                    mvkDstAccStruct->addBLASHandle(mvkBlas);
+                }
+            } else if (mvkDstAccStruct->getType() == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR) {
+                for (uint32_t i = 0; i < buildInfo.geometryCount; i++) {
+                    const VkAccelerationStructureGeometryKHR& geometry = buildInfo.pGeometries[i];
+                }
+            }
 
             [accStructEncoder buildAccelerationStructure:dstAccStruct
                                                 descriptor:descriptor
@@ -147,7 +191,8 @@ void MVKCmdCopyAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
 
 static std::size_t GetSerializedAccelerationStructureSize(MVKAccelerationStructure* mvkAS)
 {
-    std::size_t blasCount = 0;
+    auto blasHandles = mvkAS->getBLASHandles();
+    std::size_t blasCount = blasHandles.size();
     std::size_t asSize = 768;
 
     // Size of the serialized acceleration structure header.
@@ -167,7 +212,8 @@ static std::vector<uint8_t> CreateSerializedAccelerationStructure(MVKAcceleratio
 {
     uint64_t serializedSize = (uint64_t)GetSerializedAccelerationStructureSize(mvkAS);
     uint64_t deserializedSize = 768;
-    uint64_t blasHandleCount = 0;
+    auto blasSpan = mvkAS->getBLASHandles();
+    uint64_t blasHandleCount = blasSpan.size();
 
     std::vector<uint8_t> serializedData(serializedSize);
     uint8_t* pData = serializedData.data();
@@ -190,14 +236,16 @@ static std::vector<uint8_t> CreateSerializedAccelerationStructure(MVKAcceleratio
     memcpy(pData, &blasHandleCount, sizeof(uint64_t));
     pData += sizeof(uint64_t);
 
-    memset(pData, 0, sizeof(uint64_t) * blasHandleCount); // Fill with BLAS handles (if any)
-    pData += sizeof(uint64_t) * blasHandleCount;
+    for (MVKAccelerationStructure* blasHandle : blasSpan) {
+        uint64_t blasAddr = blasHandle->getDeviceAddress();
+        memcpy(pData, &blasAddr, sizeof(uint64_t));
+        pData += sizeof(uint64_t);
+    }
 
-    memset(pData, 0, deserializedSize); // Fill the rest with zeros (or actual data if available)
+    MVKBuffer* accStructureData = mvkAS->getSharedBuffer();
+    void* bufferContents = accStructureData->getMTLBuffer().contents;
+    memset(pData, 0, deserializedSize); // TODO: Placeholder for the acceleration structure data
     pData += deserializedSize;
-
-    pData = serializedData.data();
-    pData += VK_UUID_SIZE * 2 + sizeof(uint64_t);
 
     return serializedData;
 }
@@ -247,17 +295,58 @@ VkResult MVKCmdCopyMemoryToAccelerationStructure::setContent(MVKCommandBuffer* c
     
     _srcBuffer = cmdBuff->getDevice()->getBufferAtAddress(_srcAddress);
     
-    MVKAccelerationStructure* mvkDstAccStruct = (MVKAccelerationStructure*)dstAccelerationStructure;
-    _dstAccelerationStructure = mvkDstAccStruct->getMTLAccelerationStructure();
-    _dstAccelerationStructureBuffer = mvkDstAccStruct->getMTLBuffer();
+    _dstAccelerationStructure = (MVKAccelerationStructure*)dstAccelerationStructure;
     return VK_SUCCESS;
 }
 
 void MVKCmdCopyMemoryToAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
     id<MTLBlitCommandEncoder> blitEncoder = cmdEncoder->getMTLBlitEncoder(kMVKCommandUseCopyAccelerationStructureToMemory);
     _mvkDevice = cmdEncoder->getDevice();
-    
-    [blitEncoder copyFromBuffer:_srcBuffer->getMTLBuffer() sourceOffset:0 toBuffer:_dstAccelerationStructureBuffer destinationOffset:0 size:_copySize];
+
+    id<MTLAccelerationStructure> mtlDstAccStruct = _dstAccelerationStructure->getMTLAccelerationStructure();
+
+    // TODO: Not sure we if we can make the assumption that the source buffer is shared.
+    uint8_t* srcData = (uint8_t*)_srcBuffer->getMTLBuffer().contents;
+
+    uint8_t driverUUID[VK_UUID_SIZE];
+    memcpy(driverUUID, srcData, VK_UUID_SIZE);
+    srcData += VK_UUID_SIZE;
+
+    uint8_t accStrVersion[VK_UUID_SIZE];
+    memcpy(accStrVersion, srcData, VK_UUID_SIZE);
+    srcData += VK_UUID_SIZE;
+
+    uint64_t serializedSize;
+    memcpy(&serializedSize, srcData, sizeof(uint64_t));
+    srcData += sizeof(uint64_t);
+
+    uint64_t deserializedSize;
+    memcpy(&deserializedSize, srcData, sizeof(uint64_t));
+    srcData += sizeof(uint64_t);
+
+    uint64_t blasHandleCount;
+    memcpy(&blasHandleCount, srcData, sizeof(uint64_t));
+    srcData += sizeof(uint64_t);
+
+    for (uint64_t i = 0; i < blasHandleCount; i++) {
+        uint64_t blasHandle;
+        memcpy(&blasHandle, srcData, sizeof(uint64_t));
+        srcData += sizeof(uint64_t);
+        MVKAccelerationStructure* mvkBlasHandle = _mvkDevice->getAccelerationStructureAtAddress(blasHandle);
+        _dstAccelerationStructure->addBLASHandle(mvkBlasHandle);
+    }
+
+    // The rest of the data is the acceleration structure data.
+    // Stage buffer
+    const MVKMTLBufferAllocation* tempAlloc = cmdEncoder->copyToTempMTLBufferAllocation(srcData, deserializedSize);
+    // Copy the acceleration structure data to the destination acceleration structure buffer.
+    id<MTLBuffer> dstResidentBuffer = _dstAccelerationStructure->getMTLBuffer();
+
+    [blitEncoder copyFromBuffer: tempAlloc->_mtlBuffer
+                   sourceOffset: tempAlloc->_offset
+                       toBuffer: dstResidentBuffer
+              destinationOffset: 0
+                           size: deserializedSize];
 }
 
 #pragma mark -

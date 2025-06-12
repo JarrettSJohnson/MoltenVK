@@ -4897,10 +4897,7 @@ void MVKDevice::removeTimelineSemaphore(MVKTimelineSemaphore* sem4, uint64_t val
 }
 
 MVKAccelerationStructure* MVKDevice::addAccelerationStructure(MVKAccelerationStructure* accStruct) {
-    std::pair<uint64_t, MVKAccelerationStructure*> accStructMemoryPair = std::make_pair(_nextValidAccStructureAddress, accStruct);
-    _gpuAccStructAddressMap.insert(accStructMemoryPair);
-    accStruct->setDeviceAddress(_nextValidAccStructureAddress);
-    _nextValidAccStructureAddress += accStruct->getMTLSize();
+    _gpuAccStructAddressMap.emplace(accStruct->getDeviceAddress(), accStruct);
     return accStruct;
 }
 

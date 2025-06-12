@@ -269,6 +269,9 @@ MVKAccelerationStructure::MVKAccelerationStructure(MVKDevice* device,
     _buffer = [_heap newBufferWithLength: _size
                                  options: options
                                   offset: heapOffset];
+
+    [_accelerationStructure makeAliasable];
+    [_buffer makeAliasable];
 }
 
 void MVKAccelerationStructure::encodeCopyToSharedBuffer(MVKCommandEncoder* cmdEncoder)
@@ -282,9 +285,19 @@ void MVKAccelerationStructure::encodeCopyToSharedBuffer(MVKCommandEncoder* cmdEn
                            size: _size];
 }
 
+void MVKAccelerationStructure::addBLASHandle(MVKAccelerationStructure* blasHandle)
+{
+    _blasHandles.push_back(blasHandle);
+}
+
 MVKArrayRef<MVKAccelerationStructure*> MVKAccelerationStructure::getBLASHandles()
 {
     return MVKArrayRef<MVKAccelerationStructure*>(_blasHandles.data(), _blasHandles.size());
+}
+
+uint64_t MVKAccelerationStructure::getDeviceAddress() const
+{
+    return [_buffer gpuAddress];
 }
 
 void MVKAccelerationStructure::destroy()

@@ -86,7 +86,7 @@ public:
     void setDeviceAddress(uint64_t address) { _address = address; }
     
     /** Gets the address of the acceleration structure*/
-    uint64_t getDeviceAddress() const { return _address; }
+    uint64_t getDeviceAddress() const;
 
     /** Returns the type of acceleration structure */
     VkAccelerationStructureTypeKHR getType() const { return _type; }
@@ -107,7 +107,11 @@ public:
 
     void encodeCopyToSharedBuffer(MVKCommandEncoder* cmdEncoder);
 
+    void addBLASHandle(MVKAccelerationStructure* blasHandle);
+
     MVKArrayRef<MVKAccelerationStructure*> getBLASHandles();
+
+    MVKBuffer* getSharedBuffer() const { return _sharedBuffer; }
 
 #pragma mark -
 #pragma mark Construction
@@ -118,7 +122,7 @@ protected:
     
     id<MTLHeap> _heap;
     id<MTLAccelerationStructure> _accelerationStructure;
-    id<MTLBuffer> _buffer;
+    id<MTLBuffer> _buffer; // Where the AS is resident
     MVKBuffer* _sharedBuffer; // From vkCreateBuffer
     uint64_t _bufferOffset = 0;
     uint64_t _size = 0;
