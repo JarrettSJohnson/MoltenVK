@@ -45,6 +45,7 @@ protected:
         VkAccelerationStructureBuildGeometryInfoKHR info;
         MVKSmallVector<VkAccelerationStructureGeometryKHR, 3> geometries;
         MVKSmallVector<VkAccelerationStructureBuildRangeInfoKHR, 3> ranges;
+        MVKBuffer* instanceBuffer;
     };
 protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;

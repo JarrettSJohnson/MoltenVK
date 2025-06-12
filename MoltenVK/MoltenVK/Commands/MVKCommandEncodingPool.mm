@@ -169,6 +169,10 @@ id<MTLComputePipelineState> MVKCommandEncodingPool::getConvertUint8IndicesMTLCom
 	MVK_ENC_REZ_ACCESS(_mtlConvertUint8IndicesComputePipelineState, newConvertUint8IndicesMTLComputePipelineState(_commandPool));
 }
 
+id<MTLComputePipelineState> MVKCommandEncodingPool::getFillMTLInstanceDescriptorComputePipelineState() {
+    MVK_ENC_REZ_ACCESS(_mtlFillMTLInstanceDescriptorComputePipelineState, newFillMTLInstanceDescriptorComputePipelineState(_commandPool));
+}
+
 void MVKCommandEncodingPool::clear() {
 	lock_guard<mutex> lock(_lock);
 	destroyMetalResources();

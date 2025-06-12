@@ -618,6 +618,9 @@ id<MTLComputePipelineState> MVKCommandResourceFactory::newConvertUint8IndicesMTL
 	return newMTLComputePipelineState("convertUint8Indices", owner);
 }
 
+id<MTLComputePipelineState> MVKCommandResourceFactory::newFillMTLInstanceDescriptorComputePipelineState(MVKVulkanAPIDeviceObject* owner) {
+	return newMTLComputePipelineState("fillMTLInstanceDescriptors", owner);
+}
 
 #pragma mark Support methods
 

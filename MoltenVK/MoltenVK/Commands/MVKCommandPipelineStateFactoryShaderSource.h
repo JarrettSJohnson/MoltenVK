@@ -554,5 +554,45 @@ kernel void convertUint8Indices(device uint8_t* src [[ buffer(0) ]],            
     dst[pos] = idx == 0xFF ? 0xFFFF : idx;                                                                      \n\
 }                                                                                                               \n\
                                                                                                                 \n\
+typedef struct {                                                                                                \n\
+  float3x4 transform;                                                                                           \n\
+  uint32_t instanceCustomIndex24mask8;                                                                          \n\
+  uint32_t instanceShaderBindingTableRecordOffset24flags8;                                                      \n\
+  uint64_t accelerationStructureReference;                                                                      \n\
+} VkAccelerationStructureInstanceKHR;                                                                           \n\
+                                                                                                                \n\
+typedef struct {                                                                                                \n\
+  uint32_t instanceCount;                                                                                       \n\
+  uint32_t blasAddressLookupCount;                                                                              \n\
+} fillMTLInstanceDescriptorsParams;                                                                             \n\
+                                                                                                                \n\
+kernel void fillMTLInstanceDescriptors(device const VkAccelerationStructureInstanceKHR* srcInstances [[ buffer(0)]], \n\
+                                       device MTLAccelerationStructureInstanceDescriptor* destDescriptors [[ buffer(1)]], \n\
+                                       device const uint64_t* blasAddressLookup [[ buffer(2)]],                \n\
+                                       constant fillMTLInstanceDescriptorsParams& params [[ buffer(3)]],       \n\
+                                       uint instanceIdx [[ thread_position_in_grid ]]) {                       \n\
+    if (instanceIdx >= params.instanceCount) { return; }                                                       \n\
+                                                                                                               \n\
+    device const VkAccelerationStructureInstanceKHR& vkInstance = srcInstances[instanceIdx];                   \n\
+                                                                                                               \n\
+    uint32_t mtlBLASIndex = 0;                                                                                 \n\
+    for (uint32_t i = 0; i < params.blasAddressLookupCount; i++) {                                             \n\
+        if (vkInstance.accelerationStructureReference == blasAddressLookup[i]) {                               \n\
+            mtlBLASIndex = i;                                                                                  \n\
+            break;                                                                                             \n\
+        }                                                                                                      \n\
+    }                                                                                                          \n\
+                                                                                                               \n\
+    device MTLAccelerationStructureInstanceDescriptor& mtlInstance = destDescriptors[instanceIdx];             \n\
+    mtlInstance.accelerationStructureIndex = mtlBLASIndex;                                                     \n\
+                                                                                                               \n\
+    for (int col = 0; col < 4; ++col) {                                                                        \n\
+        // Loop through the 3 rows of the destination (Metal) matrix                                           \n\
+        for (int row = 0; row < 3; ++row) {                                                                    \n\
+            // Perform the transpose: Metal's [col][row] = Vulkan's [row][col]                                 \n\
+            mtlInstance.transformationMatrix[col][row] = vkInstance.transform[row][col];                       \n\
+        }                                                                                                      \n\
+    }                                                                                                          \n\
+}                                                                                                              \n\
 ";
 

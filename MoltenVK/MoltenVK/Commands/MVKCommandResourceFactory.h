@@ -490,6 +490,8 @@ public:
 	/** Returns a new MTLComputePipelineState for converting a Uint8 index buffer to Uint16. */
 	id<MTLComputePipelineState> newConvertUint8IndicesMTLComputePipelineState(MVKVulkanAPIDeviceObject* owner);
 
+	/** Returns a new MTLComputePipelineState for filling MTLInstanceDescriptors necessary for TLAS building. */
+	id<MTLComputePipelineState> newFillMTLInstanceDescriptorComputePipelineState(MVKVulkanAPIDeviceObject* owner);
 
 #pragma mark Construction
 

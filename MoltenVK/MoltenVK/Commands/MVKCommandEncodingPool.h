@@ -139,6 +139,9 @@ public:
 	/** Returns a MTLComputePipelineState for converting a Uint8 index buffer to Uint16. */
 	id<MTLComputePipelineState> getConvertUint8IndicesMTLComputePipelineState();
 
+	/** Returns a MTLComputePipelineState for filling MTLInstanceDescriptors necessary for TLAS building. */
+    id<MTLComputePipelineState> getFillMTLInstanceDescriptorComputePipelineState();
+
 	/** Deletes all the internal resources. */
 	void clear();
 
@@ -180,5 +183,6 @@ protected:
 	id<MTLComputePipelineState> _mtlCopyQueryPoolResultsComputePipelineState = nil;
 	id<MTLComputePipelineState> _mtlAccumOcclusionQueryResultsComputePipelineState = nil;
 	id<MTLComputePipelineState> _mtlConvertUint8IndicesComputePipelineState = nil;
+    id<MTLComputePipelineState> _mtlFillMTLInstanceDescriptorComputePipelineState = nil;
 };
 

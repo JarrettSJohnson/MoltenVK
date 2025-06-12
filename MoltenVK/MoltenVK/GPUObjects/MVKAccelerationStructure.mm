@@ -195,6 +195,9 @@ MTLAccelerationStructureDescriptor* MVKAccelerationStructure::populateMTLDescrip
             // add bottom level acceleration structures
             
             instance.instanceDescriptorType = MTLAccelerationStructureInstanceDescriptorTypeDefault;
+            instance.instanceCount = buildInfo.geometryCount;
+            instance.instanceDescriptorBufferOffset = 0;
+            instance.instanceDescriptorStride = sizeof(MTLAccelerationStructureInstanceDescriptor);
 
             descriptor = instance;
         } break;

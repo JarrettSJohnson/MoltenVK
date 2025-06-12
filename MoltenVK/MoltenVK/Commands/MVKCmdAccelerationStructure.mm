@@ -65,6 +65,11 @@ VkResult MVKCmdBuildAccelerationStructure::setContent(MVKCommandBuffer*         
         info.ranges.assign(ppBuildRangeInfos[i], ppBuildRangeInfos[i] + pInfos[i].geometryCount);
 
         info.info.pGeometries = info.geometries.data();
+
+        // if (info.info.type == VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR) {
+        //     uint32_t instanceCount = pInfos[i].geometryCount;
+        //     info.instanceBuffer = cmdBuff->getDevice()->getTempMTLBufferAllocation();
+        // }
     }
 
     return VK_SUCCESS;
@@ -120,6 +125,26 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
                     MVKAccelerationStructure* mvkBlas = mvkDevice->getAccelerationStructureAtAddress(deviceAddress);
                     mvkDstAccStruct->addBLASHandle(mvkBlas);
                 }
+                auto* instanceBuffer = cmdEncoder->getTempMTLBuffer(sizeof(MTLAccelerationStructureInstanceDescriptor) * range.primitiveCount);
+                id<MTLComputeCommandEncoder> computeEncoder = cmdEncoder->getMTLComputeEncoder(kMVKCommandUseBuildAccelerationStructure);
+
+                printf("A\n");
+                [computeEncoder setComputePipelineState: cmdEncoder->getCommandEncodingPool()->getFillMTLInstanceDescriptorComputePipelineState()];
+                printf("B\n");
+
+                [computeEncoder setBuffer: instanceBuffer->_mtlBuffer
+                                offset: instanceBuffer->_offset
+                                atIndex: 0];
+
+                [computeEncoder setBuffer: instanceBuffer->_mtlBuffer
+                                offset: instanceBuffer->_offset
+                                atIndex: 1];
+
+                [computeEncoder setBuffer: instanceBuffer->_mtlBuffer
+                                offset: instanceBuffer->_offset
+                                atIndex: 2];
+
+
             } else if (mvkDstAccStruct->getType() == VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR) {
                 for (uint32_t i = 0; i < buildInfo.geometryCount; i++) {
                     const VkAccelerationStructureGeometryKHR& geometry = buildInfo.pGeometries[i];
