@@ -2182,4 +2182,9 @@ void MVKPixelFormats::setFormatProperties(id<MTLDevice> mtlDevice, MVKVkFormatDe
 		enableFormatFeatures(Atomic, Buf, mtlPixFmtCaps, vkProps.bufferFeatures);
 		enableFormatFeatures(Vertex, Buf, getMTLVertexFormatDesc(vkDesc.mtlVertexFormat).mtlFmtCaps, vkProps.bufferFeatures);
 	}
+
+	// TODO: Find Metal feature to determine if the vertex buffer format is supported.
+	if (vkDesc.vkFormat == VK_FORMAT_R32G32B32_SFLOAT) {
+		 mvkEnableFlags(vkProps.bufferFeatures, VK_FORMAT_FEATURE_2_ACCELERATION_STRUCTURE_VERTEX_BUFFER_BIT_KHR);
+	}
 }

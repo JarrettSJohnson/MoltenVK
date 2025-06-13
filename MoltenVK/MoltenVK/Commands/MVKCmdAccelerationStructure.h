@@ -21,6 +21,7 @@
 #include "MVKDevice.h"
 #include "MVKCommand.h"
 #include "MVKSmallVector.h"
+#include "MVKCmdQueries.h"
 
 #import <Metal/Metal.h>
 #import <Metal/MTLAccelerationStructure.h>
@@ -39,6 +40,13 @@ public:
     
     void encode(MVKCommandEncoder* cmdEncoder) override;
 protected:
+
+    struct FillMTLInstanceDescriptorsParams
+    {
+        uint32_t instanceCount;            // Number of instances to fill.
+        uint32_t blasAddressLookupCount;   // Number of BLAS addresses to look up.
+    };
+
     struct MVKAccelerationStructureBuildInfo
     {
         VkAccelerationStructureBuildGeometryInfoKHR info;
@@ -87,11 +95,12 @@ public:
 protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
     
-    id<MTLAccelerationStructure> _srcAccelerationStructure;
-    id<MTLBuffer> _srcAccelerationStructureBuffer;
+    MVKAccelerationStructure* _srcAccelerationStructure;
     MVKBuffer* _dstBuffer;
     uint64_t _copySize;
     
+    id<MTLBuffer> _stagingBuffer;
+
     uint64_t _dstAddress;
     MVKDevice* _mvkDevice;
     VkCopyAccelerationStructureModeKHR _copyMode;
@@ -113,7 +122,7 @@ protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
     
     MVKBuffer* _srcBuffer;
-    id<MTLAccelerationStructure> _dstAccelerationStructure;
+    MVKAccelerationStructure* _dstAccelerationStructure;
     id<MTLBuffer> _dstAccelerationStructureBuffer;
     uint32_t _copySize;
     
@@ -125,7 +134,7 @@ protected:
 #pragma mark -
 #pragma mark MVKCmdWriteAccelerationStructuresProperties
 
-class MVKCmdWriteAccelerationStructuresProperties: public MVKCommand {
+class MVKCmdWriteAccelerationStructuresProperties: public MVKCmdQuery {
     
 public:
     VkResult setContent(MVKCommandBuffer* cmdBuff,
@@ -140,8 +149,6 @@ protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;
     
     uint32_t _accelerationStructureCount;
-    const MVKAccelerationStructure* _pAccelerationStructures;
+    MVKSmallVector<MVKAccelerationStructure*, 1> _accelerationStructures;
     VkQueryType _queryType;
-    VkQueryPool _queryPool;
-    uint32_t _firstQuery;
 };

@@ -695,3 +695,48 @@ class MVKStorageTexelBufferDescriptor : public MVKTexelBufferDescriptor {
 public:
 	VkDescriptorType getDescriptorType() override { return VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER; }
 };
+
+#pragma mark -
+#pragma mark MVKAccelerationStructureDescriptor
+
+class MVKAccelerationStructureDescriptor : public MVKDescriptor {
+public:
+	void bind(MVKCommandEncoder* cmdEncoder,
+			  VkPipelineBindPoint pipelineBindPoint,
+			  MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			  uint32_t elementIndex,
+			  bool stages[],
+			  MVKShaderResourceBinding& mtlIndexes,
+			  MVKArrayRef<uint32_t> dynamicOffsets,
+			  uint32_t& dynamicOffsetIndex) override;
+
+	void write(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			   MVKDescriptorSet* mvkDescSet,
+			   uint32_t index,
+			   size_t stride,
+			   const void* pData) override;
+
+	void read(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			  MVKDescriptorSet* mvkDescSet,
+			  uint32_t dstIndex,
+			  VkDescriptorImageInfo* pImageInfo,
+			  VkDescriptorBufferInfo* pBufferInfo,
+			  VkBufferView* pTexelBufferView,
+			  VkWriteDescriptorSetInlineUniformBlock* inlineUniformBlock) override;
+
+    VkDescriptorType getDescriptorType() override { return VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR; }
+
+	/** Encodes this descriptor to the Metal argument buffer. */
+	void encodeToMetalArgumentBuffer(MVKResourcesCommandEncoderState* rezEncState,
+									 id<MTLArgumentEncoder> mtlArgEncoder,
+									 uint32_t descSetIndex,
+									 MVKDescriptorSetLayoutBinding* mvkDSLBind,
+									 uint32_t elementIndex,
+									 MVKShaderStage stage,
+									 bool encodeToArgBuffer,
+									 bool encodeUsage) override;
+
+	void reset() override;
+private:
+
+};

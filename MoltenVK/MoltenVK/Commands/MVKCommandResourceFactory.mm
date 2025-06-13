@@ -614,6 +614,13 @@ id<MTLComputePipelineState> MVKCommandResourceFactory::newAccumulateOcclusionQue
 	return newMTLComputePipelineState("accumulateOcclusionQueryResults", owner);
 }
 
+id<MTLComputePipelineState> MVKCommandResourceFactory::newFillMTLInstanceDescriptorComputePipelineState(MVKVulkanAPIDeviceObject* owner) {
+	return newMTLComputePipelineState("fillMTLInstanceDescriptors", owner);
+}
+
+id<MTLComputePipelineState> MVKCommandResourceFactory::newAccelerationStructureTestComputePipelineState(MVKVulkanAPIDeviceObject* owner) {
+	return newMTLComputePipelineState("accStrTest", owner);
+}
 
 #pragma mark Support methods
 

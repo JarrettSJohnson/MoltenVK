@@ -766,12 +766,17 @@ public:
 	/** Log all performance statistics. */
 	void logPerformanceSummary();
     
-    /** Returns a pointer to the buffer at the provided address*/
+    /** Returns a pointer to the buffer at the provided address. */
     MVKBuffer* getBufferAtAddress(uint64_t address);
     
-    /** Returns a pointer to the acceleration structure at the provided address*/
+    /** Returns a pointer to the acceleration structure at the provided address. */
     MVKAccelerationStructure* getAccelerationStructureAtAddress(uint64_t address);
 
+	/** Adds a buffer range to the addressable buffer range registry. */
+    void addAddressableBufferRange(MVKBuffer* mvkBuff);
+
+	/** Removes a buffer range from the addressable buffer range registry. */
+	void removeAddressableBufferRange(MVKBuffer* mvkBuff);
 
 #pragma mark Metal
 
@@ -888,6 +893,13 @@ public:
     /** Performance statistics. */
     MVKPerformanceStatistics _performanceStatistics;
 
+	/** The Metal buffer containing the list of all BLAS device addresses. */
+	id<MTLBuffer> getBlasRegistryGPU() {
+		return _blasRegistryGPU;
+	}
+
+	/** Returns a reference to the list of all BLAS device addresses. */
+	MVKArrayRef<MVKAccelerationStructure*> getBlasRegistryCPU();
 
 #pragma mark Construction
 
@@ -909,6 +921,9 @@ public:
     static inline MVKDevice* getMVKDevice(VkDevice vkDevice) {
         return (MVKDevice*)getDispatchableObject(vkDevice);
     }
+
+	// TODO: Remove. This is used for debugging TLAS construction.
+	MVKAccelerationStructure* accelerationStructureTest{};
 
 protected:
 	void propagateDebugName() override  {}
@@ -932,13 +947,16 @@ protected:
 	void getDescriptorVariableDescriptorCountLayoutSupport(const VkDescriptorSetLayoutCreateInfo* pCreateInfo,
 														   VkDescriptorSetLayoutSupport* pSupport,
 														   VkDescriptorSetVariableDescriptorCountLayoutSupport* pVarDescSetCountSupport);
+	void reloadAccelerationStructuresToGPU();
 
 	MVKPhysicalDevice* _physicalDevice = nullptr;
     MVKCommandResourceFactory* _commandResourceFactory = nullptr;
 	MVKSmallVector<MVKSmallVector<MVKQueue*, kMVKQueueCountPerQueueFamily>, kMVKQueueFamilyCount> _queuesByQueueFamilyIndex;
 	MVKSmallVector<MVKResource*> _resources;
 	MVKSmallVector<MVKBuffer*> _gpuAddressableBuffers;
-    MVKAddressMap* _gpuBufferAddressMap;
+	MVKAddressMap* _gpuBufferAddressMap;
+	MVKSmallVector<MVKAccelerationStructure*> _blasRegistryCPU; // Shared array to hold all BLASs on the CPU
+	id<MTLBuffer> _blasRegistryGPU = nil; // Shared buffer to hold all BLASs on the GPU
     uint64_t _nextValidAccStructureAddress = 0;
     std::unordered_map<uint64_t, MVKAccelerationStructure*> _gpuAccStructAddressMap;
 	MVKSmallVector<MVKPrivateDataSlot*> _privateDataSlots;

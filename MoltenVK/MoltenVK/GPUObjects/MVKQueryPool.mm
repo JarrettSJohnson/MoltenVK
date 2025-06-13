@@ -468,6 +468,65 @@ MVKPipelineStatisticsQueryPool::MVKPipelineStatisticsQueryPool(MVKDevice* device
 	}
 }
 
+#pragma mark -
+#pragma mark MVKAccelerationStructureCompactedSizeQueryPool
+
+MVKAccelerationStructureCompactedSizeQueryPool::MVKAccelerationStructureCompactedSizeQueryPool(MVKDevice* device,
+																							   const VkQueryPoolCreateInfo* pCreateInfo) : MVKQueryPool(device, pCreateInfo, 1) {
+	if ( false ) { // TODO
+		setConfigurationResult(reportError(VK_ERROR_FEATURE_NOT_PRESENT, "vkCreateQueryPool: VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE is not supported."));
+	}
+	auto bufferSize = pCreateInfo->queryCount * sizeof(uint64_t);
+	MTLResourceOptions mtlBuffOpts = MTLResourceStorageModeShared | MTLResourceCPUCacheModeDefaultCache;
+	_resultsBuffer = [getMTLDevice() newBufferWithLength: bufferSize
+											     options: mtlBuffOpts];
+}
+
+MVKAccelerationStructureCompactedSizeQueryPool::~MVKAccelerationStructureCompactedSizeQueryPool()
+{
+	[_resultsBuffer release];
+}
+
+id<MTLBuffer> MVKAccelerationStructureCompactedSizeQueryPool::getResultsBuffer() {
+	return _resultsBuffer;
+}
+
+NSData* MVKAccelerationStructureCompactedSizeQueryPool::getQuerySourceData(uint32_t firstQuery, uint32_t queryCount) {
+	NSData* data = [NSData dataWithBytesNoCopy: (void*)((uintptr_t)_resultsBuffer.contents + firstQuery * sizeof(uint64_t))
+								length: queryCount * sizeof(uint64_t)
+						  freeWhenDone: false];
+	return data;
+}
+
+#pragma mark -
+#pragma mark MVKAccelerationStructureSerializationSizeQueryPool
+
+MVKAccelerationStructureSerializationSizeQueryPool::MVKAccelerationStructureSerializationSizeQueryPool(MVKDevice* device,
+																									   const VkQueryPoolCreateInfo* pCreateInfo) : MVKQueryPool(device, pCreateInfo, 1) {
+	if ( false ) { // TODO - Serialization is almost done
+		setConfigurationResult(reportError(VK_ERROR_FEATURE_NOT_PRESENT, "vkCreateQueryPool: VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE is not supported."));
+	}
+	auto bufferSize = pCreateInfo->queryCount * sizeof(uint64_t);
+	MTLResourceOptions mtlBuffOpts = MTLResourceStorageModeShared | MTLResourceCPUCacheModeDefaultCache;
+	_resultsBuffer = [getMTLDevice() newBufferWithLength: bufferSize
+											     options: mtlBuffOpts];
+}
+
+MVKAccelerationStructureSerializationSizeQueryPool::~MVKAccelerationStructureSerializationSizeQueryPool()
+{
+	[_resultsBuffer release];
+}
+
+id<MTLBuffer> MVKAccelerationStructureSerializationSizeQueryPool::getResultsBuffer() {
+	return _resultsBuffer;
+}
+
+NSData* MVKAccelerationStructureSerializationSizeQueryPool::getQuerySourceData(uint32_t firstQuery, uint32_t queryCount) {
+	NSData* data = [NSData dataWithBytesNoCopy: (void*)((uintptr_t)_resultsBuffer.contents + firstQuery * sizeof(uint64_t))
+								length: queryCount * sizeof(uint64_t)
+						  freeWhenDone: false];
+	return data;
+}
 
 #pragma mark -
 #pragma mark MVKUnsupportedQueryPool

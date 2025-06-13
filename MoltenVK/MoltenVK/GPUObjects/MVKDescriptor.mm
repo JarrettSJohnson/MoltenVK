@@ -178,6 +178,10 @@ void mvkPopulateShaderConversionConfig(mvk::SPIRVToMSLConversionConfiguration& s
 			addResourceBinding(SampledImage);
 			break;
 
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			addResourceBinding(AccelerationStructure);
+			break;
+
 		default:
 			addResourceBinding(Unknown);
 			break;
@@ -808,6 +812,54 @@ void MVKBufferDescriptor::reset() {
 	MVKDescriptor::reset();
 }
 
+void MVKAccelerationStructureDescriptor::bind(MVKCommandEncoder* cmdEncoder,
+			VkPipelineBindPoint pipelineBindPoint,
+			MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			uint32_t elementIndex,
+			bool stages[],
+			MVKShaderResourceBinding& mtlIndexes,
+			MVKArrayRef<uint32_t> dynamicOffsets,
+			uint32_t& dynamicOffsetIndex)
+{
+  // TODO: VK_KHR_raytracing_pipeline
+}
+
+void MVKAccelerationStructureDescriptor::write(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			MVKDescriptorSet* mvkDescSet,
+			uint32_t index,
+			size_t stride,
+			const void* pData)
+{
+  // TODO: VK_KHR_raytracing_pipeline
+}
+
+void MVKAccelerationStructureDescriptor::read(MVKDescriptorSetLayoutBinding* mvkDSLBind,
+			MVKDescriptorSet* mvkDescSet,
+			uint32_t dstIndex,
+			VkDescriptorImageInfo* pImageInfo,
+			VkDescriptorBufferInfo* pBufferInfo,
+			VkBufferView* pTexelBufferView,
+			VkWriteDescriptorSetInlineUniformBlock* inlineUniformBlock)
+{
+  // TODO: VK_KHR_raytracing_pipeline
+}
+
+void MVKAccelerationStructureDescriptor::encodeToMetalArgumentBuffer(MVKResourcesCommandEncoderState* rezEncState,
+									id<MTLArgumentEncoder> mtlArgEncoder,
+									uint32_t descSetIndex,
+									MVKDescriptorSetLayoutBinding* mvkDSLBind,
+									uint32_t elementIndex,
+									MVKShaderStage stage,
+									bool encodeToArgBuffer,
+									bool encodeUsage)
+{
+	// TODO VK_KHR_raytracing_pipeline
+}
+
+void MVKAccelerationStructureDescriptor::reset()
+{
+  // TODO: VK_KHR_raytracing_pipeline
+}
 
 #pragma mark -
 #pragma mark MVKInlineUniformBlockDescriptor

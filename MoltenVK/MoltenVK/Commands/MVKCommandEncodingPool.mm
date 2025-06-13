@@ -165,6 +165,14 @@ id<MTLComputePipelineState> MVKCommandEncodingPool::getAccumulateOcclusionQueryR
 	MVK_ENC_REZ_ACCESS(_mtlAccumOcclusionQueryResultsComputePipelineState, newAccumulateOcclusionQueryResultsMTLComputePipelineState(_commandPool));
 }
 
+id<MTLComputePipelineState> MVKCommandEncodingPool::getFillMTLInstanceDescriptorComputePipelineState() {
+    MVK_ENC_REZ_ACCESS(_mtlFillMTLInstanceDescriptorComputePipelineState, newFillMTLInstanceDescriptorComputePipelineState(_commandPool));
+}
+
+id<MTLComputePipelineState> MVKCommandEncodingPool::getAccelerationStructureTestComputePipelineState() {
+    MVK_ENC_REZ_ACCESS(_mtlFillMTLInstanceDescriptorComputePipelineState, newAccelerationStructureTestComputePipelineState(_commandPool));
+}
+
 void MVKCommandEncodingPool::clear() {
 	lock_guard<mutex> lock(_lock);
 	destroyMetalResources();

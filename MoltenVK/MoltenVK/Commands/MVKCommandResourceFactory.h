@@ -487,6 +487,11 @@ public:
 	/** Returns a new MTLComputePipelineState for accumulating occlusion query results to a buffer. */
 	id<MTLComputePipelineState> newAccumulateOcclusionQueryResultsMTLComputePipelineState(MVKVulkanAPIDeviceObject* owner);
 
+	/** Returns a new MTLComputePipelineState for filling MTLInstanceDescriptors necessary for TLAS building. */
+	id<MTLComputePipelineState> newFillMTLInstanceDescriptorComputePipelineState(MVKVulkanAPIDeviceObject* owner);
+
+	/** TODO: Remove. Just used for testing TLAS. */
+    id<MTLComputePipelineState> newAccelerationStructureTestComputePipelineState(MVKVulkanAPIDeviceObject* owner);
 
 #pragma mark Construction
 

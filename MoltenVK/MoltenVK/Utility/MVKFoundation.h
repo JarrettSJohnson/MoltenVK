@@ -98,11 +98,13 @@ typedef enum : uint8_t {
     kMVKCommandUseCopyQueryPoolResults,         /**< vkCmdCopyQueryPoolResults. */
     kMVKCommandUseAccumOcclusionQuery,          /**< Any command terminating a Metal render pass with active visibility buffer. */
 	kMVKCommandUseRecordGPUCounterSample,        /**< Any command triggering the recording of a GPU counter sample. */
-    kMVKCommandUseBuildAccelerationStructure,       /**< vkCmdBuiildAccelerationStructure - Builds an acceleration structure */
-    kMVKCommandUseCopyAccelerationStructure,        /**< vkCmdCopyAccelerationStructure- Copies an acceleration structure to another acceleration structure*/
-    kMVKCommandUseCopyAccelerationStructureToMemory,/**< vkCmdCopyAccelerationStructureToMemory - Copies and serializes an acceleration structure to a buffer*/
-    kMVKCommandUseCopyMemoryToAccelerationStructure,/**< vkCmdCopyMemoryToAccelerationStructure - Copies and deserializes an acceleration structure from a buffer*/
-    kMVKCommandUseWriteAccelerationStructuresProperties,
+    kMVKCommandUseBuildAccelerationStructure,            /**< vkCmdBuiildAccelerationStructure - Builds an acceleration structure */
+    kMVKCommandUseCopyAccelerationStructure,             /**< vkCmdCopyAccelerationStructure- Copies an acceleration structure to another acceleration structure. */
+    kMVKCommandUseCopyAccelerationStructureToMemory,     /**< vkCmdCopyAccelerationStructureToMemory - Copies and serializes an acceleration structure to a buffer. */
+    kMVKCommandUseCopyMemoryToAccelerationStructure,     /**< vkCmdCopyMemoryToAccelerationStructure - Copies and deserializes an acceleration structure from a buffer. */
+    kMVKCommandUseWriteAccelerationStructuresProperties, /**< vkCmdWriteAccelerationStructuresPropertiesKHR - Copies various acceleration structure properties to a buffer. */
+    kMVKCommandUseFillMTLInstanceBuffer,                 /**< vkCmdFillMTLInstanceBuffer - Fills a Metal instance descriptor buffer. */
+	kMVKCommandUseAccelerationStructureTest,             /**< vkCmdAccelerationStructureTestKHR - Tests an acceleration structure against a ray. */
 } MVKCommandUse;
 
 /** Represents a given stage of a graphics pipeline. */

@@ -541,5 +541,86 @@ kernel void accumulateOcclusionQueryResults(device VisibilityBuffer& dest [[buff
     if (dest.count < max(oldDestCount, src.count)) { dest.countHigh++; }                                        \n\
 }                                                                                                               \n\
                                                                                                                 \n\
+typedef struct {                                                                                                \n\
+  float3x4 transform;                                                                                           \n\
+  uint32_t instanceCustomIndex24mask8;                                                                          \n\
+  uint32_t instanceShaderBindingTableRecordOffset24flags8;                                                      \n\
+  uint64_t accelerationStructureReference;                                                                      \n\
+} VkAccelerationStructureInstanceKHR;                                                                           \n\
+                                                                                                                \n\
+typedef struct {                                                                                                \n\
+  uint32_t instanceCount;                                                                                       \n\
+  uint32_t blasAddressLookupCount;                                                                              \n\
+} FillMTLInstanceDescriptorsParams;                                                                             \n\
+                                                                                                                \n\
+static MTLAccelerationStructureInstanceOptions VkInstanceFlagsToMTLInstanceOptions(uint32_t vkFlags) {          \n\
+    uint32_t mtlOptions = 0;                                                                                    \n\
+                                                                                                                \n\
+    // VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR (0x1)                                          \n\
+    if ((vkFlags & 0x1) != 0) {                                                                                 \n\
+        mtlOptions |= MTLAccelerationStructureInstanceOptionDisableTriangleCulling;                             \n\
+    }                                                                                                           \n\
+                                                                                                                \n\
+    // VK_GEOMETRY_INSTANCE_TRIANGLE_FLIP_FACING_BIT_KHR (0x2)                                                  \n\
+    // Flip the front-facing winding order. Vulkan winding is                                                   \n\
+    // Counter-Clockwise and Metal's is Clockwise, we enable the CCW                                            \n\
+    // option in Metal only when the flip bit is NOT set.                                                       \n\
+    if ((vkFlags & 0x2) == 0) {                                                                                 \n\
+        mtlOptions |= MTLAccelerationStructureInstanceOptionTriangleFrontFacingWindingCounterClockwise;         \n\
+    }                                                                                                           \n\
+                                                                                                                \n\
+    // VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR (0x4)                                                          \n\
+    if ((vkFlags & 0x4) != 0) {                                                                                 \n\
+        mtlOptions |= MTLAccelerationStructureInstanceOptionOpaque;                                             \n\
+    }                                                                                                           \n\
+                                                                                                                \n\
+    // VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR (0x8)                                                       \n\
+    if ((vkFlags & 0x8) != 0) {                                                                                 \n\
+        mtlOptions |= MTLAccelerationStructureInstanceOptionNonOpaque;                                          \n\
+    }                                                                                                           \n\
+                                                                                                                \n\
+    return (MTLAccelerationStructureInstanceOptions)mtlOptions;                                                 \n\
+}                                                                                                               \n\
+                                                                                                                \n\
+kernel void fillMTLInstanceDescriptors(device const VkAccelerationStructureInstanceKHR* srcInstances [[ buffer(0)]], \n\
+                                       device MTLAccelerationStructureUserIDInstanceDescriptor* destDescriptors [[ buffer(1)]], \n\
+                                       device const uint64_t* blasAddressLookup [[ buffer(2)]],                 \n\
+                                       constant FillMTLInstanceDescriptorsParams& params [[ buffer(3)]],        \n\
+                                       uint instanceIdx [[ thread_position_in_grid ]]) {                        \n\
+    if (instanceIdx >= params.instanceCount) { return; }                                                        \n\
+                                                                                                                \n\
+    device const VkAccelerationStructureInstanceKHR& vkInstance = srcInstances[instanceIdx];                    \n\
+                                                                                                                \n\
+    uint32_t mtlBLASIndex = 0;                                                                                  \n\
+    for (uint32_t i = 0; i < params.blasAddressLookupCount; i++) {                                              \n\
+        if (vkInstance.accelerationStructureReference == blasAddressLookup[i]) {                                \n\
+            mtlBLASIndex = i;                                                                                   \n\
+            break;                                                                                              \n\
+        }                                                                                                       \n\
+    }                                                                                                           \n\
+                                                                                                                \n\
+    device MTLAccelerationStructureUserIDInstanceDescriptor& mtlInstance = destDescriptors[instanceIdx];        \n\
+    mtlInstance.accelerationStructureIndex = mtlBLASIndex;                                                      \n\
+    mtlInstance.mask = vkInstance.instanceCustomIndex24mask8 >> 24;                                             \n\
+    mtlInstance.userID = vkInstance.instanceCustomIndex24mask8 & 0x00FFFFFF;                                    \n\
+    uint32_t intTableOffset = (vkInstance.instanceShaderBindingTableRecordOffset24flags8 & 0x00FFFFFF);         \n\
+    mtlInstance.intersectionFunctionTableOffset = intTableOffset;                                               \n\
+    uint32_t vkFlags = (vkInstance.instanceShaderBindingTableRecordOffset24flags8 >> 24);                       \n\
+    mtlInstance.options = VkInstanceFlagsToMTLInstanceOptions(vkFlags);                                         \n\
+                                                                                                                \n\
+    for (int col = 0; col < 4; ++col) {                                                                         \n\
+        // Loop through the 3 rows of the destination (Metal) matrix                                            \n\
+        for (int row = 0; row < 3; ++row) {                                                                     \n\
+            // Perform the transpose: Metal's [col][row] = Vulkan's [row][col]                                  \n\
+            mtlInstance.transformationMatrix[col][row] = vkInstance.transform[row][col];                        \n\
+        }                                                                                                       \n\
+    }                                                                                                           \n\
+}                                                                                                               \n\
+                                                                                                                \n\
+// Metal Debugger can only inspect TLAS if it's used in a ray tracing or compute shader. So just keep it around \n\
+// for debugging purposes/this PR.                                                                              \n\
+kernel void accStrTest(metal::raytracing::acceleration_structure<> accStr [[buffer(0)]],                        \n\
+                       uint idx [[thread_position_in_grid]]) {                                                  \n\
+}                                                                                                               \n\
 ";
 

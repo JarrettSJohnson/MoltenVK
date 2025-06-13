@@ -313,6 +313,7 @@ protected:
 	MVKDescriptorTypePool<MVKCombinedImageSamplerDescriptor> _combinedImageSamplerDescriptors;
 	MVKDescriptorTypePool<MVKUniformTexelBufferDescriptor> _uniformTexelBufferDescriptors;
 	MVKDescriptorTypePool<MVKStorageTexelBufferDescriptor> _storageTexelBufferDescriptors;
+	MVKDescriptorTypePool<MVKAccelerationStructureDescriptor> _accelerationStructureDescriptors;
 };
 
 

@@ -51,6 +51,7 @@ void MVKDescriptorSetLayout::bindDescriptorSet(MVKCommandEncoder* cmdEncoder,
 static const void* getWriteParameters(VkDescriptorType type, const VkDescriptorImageInfo* pImageInfo,
                                       const VkDescriptorBufferInfo* pBufferInfo, const VkBufferView* pTexelBufferView,
                                       const VkWriteDescriptorSetInlineUniformBlockEXT* pInlineUniformBlock,
+                                      const VkWriteDescriptorSetAccelerationStructureKHR* pAccelerationStructure,
                                       size_t& stride) {
     const void* pData;
     switch (type) {
@@ -82,6 +83,11 @@ static const void* getWriteParameters(VkDescriptorType type, const VkDescriptorI
         stride = sizeof(VkWriteDescriptorSetInlineUniformBlockEXT);
         break;
 
+    case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+        pData = pAccelerationStructure;
+        stride = sizeof(VkWriteDescriptorSetAccelerationStructureKHR);
+        break;
+
     default:
         pData = nullptr;
         stride = 0;
@@ -106,11 +112,16 @@ void MVKDescriptorSetLayout::pushDescriptorSet(MVKCommandEncoder* cmdEncoder,
         const VkDescriptorBufferInfo* pBufferInfo = descWrite.pBufferInfo;
         const VkBufferView* pTexelBufferView = descWrite.pTexelBufferView;
         const VkWriteDescriptorSetInlineUniformBlockEXT* pInlineUniformBlock = nullptr;
+        const VkWriteDescriptorSetAccelerationStructureKHR* pAccelerationStructure = nullptr;
         if (_device->_enabledExtensions.vk_EXT_inline_uniform_block.enabled) {
 			for (const auto* next = (VkBaseInStructure*)descWrite.pNext; next; next = next->pNext) {
                 switch (next->sType) {
                 case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT: {
 					pInlineUniformBlock = (VkWriteDescriptorSetInlineUniformBlockEXT*)next;
+                    break;
+                }
+                case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR: {
+                    pAccelerationStructure = (VkWriteDescriptorSetAccelerationStructureKHR*)next;
                     break;
                 }
                 default:
@@ -125,7 +136,8 @@ void MVKDescriptorSetLayout::pushDescriptorSet(MVKCommandEncoder* cmdEncoder,
             if (!_bindingToIndex.count(dstBinding)) continue;
             size_t stride;
             const void* pData = getWriteParameters(descWrite.descriptorType, pImageInfo,
-                                                   pBufferInfo, pTexelBufferView, pInlineUniformBlock, stride);
+                                                   pBufferInfo, pTexelBufferView, pInlineUniformBlock,
+                                                   pAccelerationStructure, stride);
             uint32_t descriptorsPushed = 0;
             uint32_t bindIdx = _bindingToIndex[dstBinding];
             _bindings[bindIdx].push(cmdEncoder, pipelineBindPoint, dstArrayElement, descriptorCount,
@@ -626,6 +638,9 @@ VkResult MVKDescriptorPool::allocateDescriptor(VkDescriptorType descriptorType,
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 			return _storageTexelBufferDescriptors.allocateDescriptor(pMVKDesc, this);
 
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			return _accelerationStructureDescriptors.allocateDescriptor(pMVKDesc, this);
+
 		default:
 			return reportError(VK_ERROR_INITIALIZATION_FAILED, "Unrecognized VkDescriptorType %d.", descriptorType);
 	}
@@ -725,7 +740,8 @@ MVKDescriptorPool::MVKDescriptorPool(MVKDevice* device, const VkDescriptorPoolCr
 	_samplerDescriptors(getPoolSize(pCreateInfo, VK_DESCRIPTOR_TYPE_SAMPLER)),
 	_combinedImageSamplerDescriptors(getPoolSize(pCreateInfo, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)),
 	_uniformTexelBufferDescriptors(getPoolSize(pCreateInfo, VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER)),
-    _storageTexelBufferDescriptors(getPoolSize(pCreateInfo, VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER)) {
+    _storageTexelBufferDescriptors(getPoolSize(pCreateInfo, VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER)),
+	_accelerationStructureDescriptors(getPoolSize(pCreateInfo, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)) {
 		initMetalArgumentBuffer(pCreateInfo);
 	}
 
@@ -902,11 +918,16 @@ void mvkUpdateDescriptorSets(uint32_t writeCount,
 		MVKDescriptorSet* dstSet = (MVKDescriptorSet*)pDescWrite->dstSet;
 
 		const VkWriteDescriptorSetInlineUniformBlockEXT* pInlineUniformBlock = nullptr;
+		const VkWriteDescriptorSetAccelerationStructureKHR* pAccelerationStructure = nullptr;
 		if (dstSet->getDevice()->_enabledExtensions.vk_EXT_inline_uniform_block.enabled) {
 			for (const auto* next = (VkBaseInStructure*)pDescWrite->pNext; next; next = next->pNext) {
 				switch (next->sType) {
 				case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT: {
 					pInlineUniformBlock = (VkWriteDescriptorSetInlineUniformBlockEXT*)next;
+					break;
+				}
+				case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR: {
+					pAccelerationStructure = (VkWriteDescriptorSetAccelerationStructureKHR*)next;
 					break;
 				}
 				default:
@@ -917,7 +938,7 @@ void mvkUpdateDescriptorSets(uint32_t writeCount,
 
 		const void* pData = getWriteParameters(pDescWrite->descriptorType, pDescWrite->pImageInfo,
 											   pDescWrite->pBufferInfo, pDescWrite->pTexelBufferView,
-											   pInlineUniformBlock, stride);
+											   pInlineUniformBlock, pAccelerationStructure, stride);
 		dstSet->write(pDescWrite, stride, pData);
 	}
 
@@ -938,13 +959,21 @@ void mvkUpdateDescriptorSets(uint32_t writeCount,
 		inlineUniformBlock.pData = dstBuffer;
 		inlineUniformBlock.dataSize = descCnt;
 
+		VkAccelerationStructureKHR dstAccelerationStructureBuffer[descCnt];
+		VkWriteDescriptorSetAccelerationStructureKHR accelerationStructure;
+		accelerationStructure.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+		accelerationStructure.pNext = nullptr;
+		accelerationStructure.accelerationStructureCount = descCnt;
+		accelerationStructure.pAccelerationStructures = dstAccelerationStructureBuffer;
+
 		MVKDescriptorSet* srcSet = (MVKDescriptorSet*)pDescCopy->srcSet;
 		srcSet->read(pDescCopy, imgInfos, buffInfos, texelBuffInfos, &inlineUniformBlock);
 
 		MVKDescriptorSet* dstSet = (MVKDescriptorSet*)pDescCopy->dstSet;
 		VkDescriptorType descType = dstSet->getDescriptorType(pDescCopy->dstBinding);
 		size_t stride;
-		const void* pData = getWriteParameters(descType, imgInfos, buffInfos, texelBuffInfos, &inlineUniformBlock, stride);
+		const void* pData = getWriteParameters(descType, imgInfos, buffInfos, texelBuffInfos,
+												&inlineUniformBlock, &accelerationStructure, stride);
 		dstSet->write(pDescCopy, stride, pData);
 	}
 }

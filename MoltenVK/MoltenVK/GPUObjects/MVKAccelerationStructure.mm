@@ -22,6 +22,31 @@
 
 #include <Metal/Metal.h>
 
+// TODO: Determine the actual supported formats for acceleration structures
+static MTLAttributeFormat mvkMTLAttributeFormatFromVkFormatForAccelerationStructures(VkFormat format)
+{
+    switch (format) {
+        case VK_FORMAT_R32G32B32A32_SFLOAT:
+            return MTLAttributeFormatFloat4;
+        case VK_FORMAT_R32G32B32_SFLOAT:
+            return MTLAttributeFormatFloat3;
+        case VK_FORMAT_R32G32_SFLOAT:
+            return MTLAttributeFormatFloat2;
+        case VK_FORMAT_R32_SFLOAT:
+            return MTLAttributeFormatFloat;
+        case VK_FORMAT_R16G16B16A16_SFLOAT:
+            return MTLAttributeFormatHalf4;
+        case VK_FORMAT_R16G16B16_SFLOAT:
+            return MTLAttributeFormatHalf3;
+        case VK_FORMAT_R16G16_SFLOAT:
+            return MTLAttributeFormatHalf2;
+        case VK_FORMAT_R16_SFLOAT:
+            return MTLAttributeFormatHalf;
+        default:
+            return MTLAttributeFormatInvalid;
+    }
+}
+
 #pragma mark -
 #pragma mark MVKAcceleration Structure
 
@@ -68,39 +93,46 @@ MTLAccelerationStructureDescriptor* MVKAccelerationStructure::populateMTLDescrip
                     case VK_GEOMETRY_TYPE_TRIANGLES_KHR:
                     {
                         const VkAccelerationStructureGeometryTrianglesDataKHR& triangleData = geom.geometry.triangles;
-                        uint64_t vertexBDA = triangleData.vertexData.deviceAddress;
-                        uint64_t indexBDA = triangleData.indexData.deviceAddress;
-                        uint64_t transformBDA = triangleData.transformData.deviceAddress;
-                        MVKBuffer* mvkVertexBuffer = device->getBufferAtAddress(vertexBDA);
-                        MVKBuffer* mvkIndexBuffer = device->getBufferAtAddress(indexBDA);
-                        MVKBuffer* mvkTransformBuffer = device->getBufferAtAddress(transformBDA);
 
-                        // TODO: should validate that buffer->getMTLBufferOffset is a multiple of vertexStride. This could cause issues
-                        NSUInteger vbOffset = (vertexBDA - mvkVertexBuffer->getMTLBufferGPUAddress()) + mvkVertexBuffer->getMTLBufferOffset();
-                        NSUInteger ibOffset = 0;
-                        NSUInteger tfOffset = 0;
-                        
                         MTLAccelerationStructureTriangleGeometryDescriptor* geometryTriangles = [MTLAccelerationStructureTriangleGeometryDescriptor new];
-                        geometryTriangles.vertexBuffer = mvkVertexBuffer->getMTLBuffer();
+
                         geometryTriangles.vertexStride = triangleData.vertexStride;
-
-                        if (transformBDA && mvkTransformBuffer)
-                        {
-                            tfOffset = (transformBDA - mvkTransformBuffer->getMTLBufferGPUAddress()) + mvkTransformBuffer->getMTLBufferOffset();
-                            geometryTriangles.transformationMatrixBuffer = mvkTransformBuffer->getMTLBuffer();
-                        }
-
-                        bool useIndices = indexBDA && mvkIndexBuffer && triangleData.indexType != VK_INDEX_TYPE_NONE_KHR;
-                        if (useIndices)
-                        {
-                            ibOffset = (indexBDA - mvkIndexBuffer->getMTLBufferGPUAddress()) + mvkIndexBuffer->getMTLBufferOffset();
-                            geometryTriangles.indexBuffer = mvkIndexBuffer->getMTLBuffer();
-                            geometryTriangles.indexType = mvkMTLIndexTypeFromVkIndexType(triangleData.indexType);
-                        }
+                        geometryTriangles.indexType = mvkMTLIndexTypeFromVkIndexType(triangleData.indexType);
+                        geometryTriangles.vertexFormat = mvkMTLAttributeFormatFromVkFormatForAccelerationStructures(triangleData.vertexFormat);
 
                         if (rangeInfos)
                         {
+                            if (triangleData.maxVertex == 0) {
+                                break;
+                            }
+
+                            uint64_t vertexBDA = triangleData.vertexData.deviceAddress;
+                            uint64_t indexBDA = triangleData.indexData.deviceAddress;
+                            uint64_t transformBDA = triangleData.transformData.deviceAddress;
+
+                            MVKBuffer* mvkVertexBuffer = device->getBufferAtAddress(vertexBDA);
+                            MVKBuffer* mvkIndexBuffer = device->getBufferAtAddress(indexBDA);
+                            MVKBuffer* mvkTransformBuffer = device->getBufferAtAddress(transformBDA);
+
+                            // TODO: should validate that buffer->getMTLBufferOffset is a multiple of vertexStride. This could cause issues
+                            NSUInteger vbOffset = (vertexBDA - mvkVertexBuffer->getMTLBufferGPUAddress()) + mvkVertexBuffer->getMTLBufferOffset();
+                            NSUInteger ibOffset = 0;
+                            NSUInteger tfOffset = 0;
                             // Utilize range information during build time
+                            geometryTriangles.vertexBuffer = mvkVertexBuffer->getMTLBuffer();
+
+                            if (transformBDA && mvkTransformBuffer)
+                            {
+                                tfOffset = (transformBDA - mvkTransformBuffer->getMTLBufferGPUAddress()) + mvkTransformBuffer->getMTLBufferOffset();
+                                geometryTriangles.transformationMatrixBuffer = mvkTransformBuffer->getMTLBuffer();
+                            }
+
+                            bool useIndices = indexBDA && mvkIndexBuffer && triangleData.indexType != VK_INDEX_TYPE_NONE_KHR;
+                            if (useIndices)
+                            {
+                                ibOffset = (indexBDA - mvkIndexBuffer->getMTLBufferGPUAddress()) + mvkIndexBuffer->getMTLBufferOffset();
+                                geometryTriangles.indexBuffer = mvkIndexBuffer->getMTLBuffer();
+                            }
 
                             geometryTriangles.triangleCount = rangeInfos[i].primitiveCount;
                             geometryTriangles.transformationMatrixBufferOffset = tfOffset + rangeInfos[i].transformOffset;
@@ -114,9 +146,11 @@ MTLAccelerationStructureDescriptor* MVKAccelerationStructure::populateMTLDescrip
                         {
                             // Less information required when computing size
 
-                            geometryTriangles.vertexBufferOffset = vbOffset;
+                            // TODO: Are offsets still needed here just for sizes?
+                            // We may not have access to these for size calculations.
+                            // geometryTriangles.vertexBufferOffset = vbOffset;
                             geometryTriangles.triangleCount = maxPrimitiveCounts[i];
-                            geometryTriangles.indexBufferOffset = ibOffset;
+                            // geometryTriangles.indexBufferOffset = ibOffset;
                             geometryTriangles.transformationMatrixBufferOffset = 0;
                         }
 
@@ -157,8 +191,11 @@ MTLAccelerationStructureDescriptor* MVKAccelerationStructure::populateMTLDescrip
         {
             MTLInstanceAccelerationStructureDescriptor* instance = [MTLInstanceAccelerationStructureDescriptor new];
             // add bottom level acceleration structures
-            
+
+            instance.instanceCount = rangeInfos ? rangeInfos->primitiveCount : *maxPrimitiveCounts;
             instance.instanceDescriptorType = MTLAccelerationStructureInstanceDescriptorTypeDefault;
+            instance.instanceDescriptorBufferOffset = 0;
+            instance.instanceDescriptorStride = sizeof(MTLAccelerationStructureUserIDInstanceDescriptor);
 
             descriptor = instance;
         } break;
@@ -204,15 +241,63 @@ uint64_t MVKAccelerationStructure::getMTLSize()
     return _accelerationStructure.size;
 }
 
-MVKAccelerationStructure::MVKAccelerationStructure(MVKDevice* device) : MVKVulkanAPIDeviceObject(device)
+MVKAccelerationStructure::MVKAccelerationStructure(MVKDevice* device,
+                                                   const VkAccelerationStructureCreateInfoKHR* pCreateInfo) : MVKVulkanAPIDeviceObject(device)
 {
+    auto accSize = [getMTLDevice() heapAccelerationStructureSizeAndAlignWithSize:pCreateInfo->size];
+
     MTLHeapDescriptor* heapDescriptor = [MTLHeapDescriptor new];
+    heapDescriptor.type = MTLHeapTypePlacement;
     heapDescriptor.storageMode = MTLStorageModePrivate;
-//    heapDescriptor.size = getBuildSizes().accelerationStructureSize;
+    heapDescriptor.size = accSize.size;
+
     _heap = [getMTLDevice() newHeapWithDescriptor:heapDescriptor];
-    
-//    _accelerationStructure = [_heap newAccelerationStructureWithSize:getBuildSizes().accelerationStructureSize];
-//    _buffer = [_heap newBufferWithLength:getBuildSizes().accelerationStructureSize options:MTLResourceOptionCPUCacheModeDefault];
+
+    _sharedBuffer = (MVKBuffer*) pCreateInfo->buffer;
+    _bufferOffset = pCreateInfo->offset;
+    _size = pCreateInfo->size;
+    _type = pCreateInfo->type;
+
+    // For now all resources will begin at beginning of heap.
+    // Ideally we'd get this from an AccelerationStructureHeapManager?
+    NSUInteger heapOffset = 0;
+
+    _accelerationStructure = [_heap newAccelerationStructureWithSize: accSize.size
+                                                              offset: heapOffset];
+
+    MTLResourceOptions options = MTLResourceStorageModePrivate;
+    _buffer = [_heap newBufferWithLength: _size
+                                 options: options
+                                  offset: heapOffset];
+
+    [_accelerationStructure makeAliasable];
+    [_buffer makeAliasable];
+}
+
+void MVKAccelerationStructure::encodeCopyToSharedBuffer(MVKCommandEncoder* cmdEncoder)
+{
+    id<MTLBlitCommandEncoder> blitEncoder = cmdEncoder->getMTLBlitEncoder(kMVKCommandUseCopyAccelerationStructureToMemory);
+
+    [blitEncoder copyFromBuffer: _buffer
+                   sourceOffset: 0
+                       toBuffer: _sharedBuffer->getMTLBuffer()
+              destinationOffset: 0
+                           size: _size];
+}
+
+void MVKAccelerationStructure::addBLASHandle(MVKAccelerationStructure* blasHandle)
+{
+    _blasHandles.push_back(blasHandle);
+}
+
+MVKArrayRef<MVKAccelerationStructure*> MVKAccelerationStructure::getBLASHandles()
+{
+    return MVKArrayRef<MVKAccelerationStructure*>(_blasHandles.data(), _blasHandles.size());
+}
+
+uint64_t MVKAccelerationStructure::getDeviceAddress() const
+{
+    return [_buffer gpuAddress];
 }
 
 void MVKAccelerationStructure::destroy()

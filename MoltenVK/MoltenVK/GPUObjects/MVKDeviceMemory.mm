@@ -188,15 +188,18 @@ bool MVKDeviceMemory::ensureMTLHeap() {
 	// Can't create MTLHeaps of zero size.
 	if (_allocationSize == 0) { return true; }
 
-#if MVK_MACOS
-	// MTLHeaps on macOS must use private storage for now.
-	if (_mtlStorageMode != MTLStorageModePrivate) { return true; }
+#if !MVK_OS_SIMULATOR
+	// TODO: Main branch enables Placement heaps. Remove when this is rebased.
+	if (true /* getPhysicalDevice()->getMTLDeviceCapabilities().isAppleGPU */) {
+		// MTLHeaps on Apple silicon must use private or shared storage for now.
+		if ( !(_mtlStorageMode == MTLStorageModePrivate ||
+		       _mtlStorageMode == MTLStorageModeShared) ) { return true; }
+	} else
 #endif
-#if MVK_IOS
-	// MTLHeaps on iOS must use private or shared storage for now.
-	if ( !(_mtlStorageMode == MTLStorageModePrivate ||
-		   _mtlStorageMode == MTLStorageModeShared) ) { return true; }
-#endif
+	{
+		// MTLHeaps with immediate-mode GPUs must use private storage for now.
+		if (_mtlStorageMode != MTLStorageModePrivate) { return true; }
+	}
 
 	MTLHeapDescriptor* heapDesc = [MTLHeapDescriptor new];
 	heapDesc.type = MTLHeapTypePlacement;

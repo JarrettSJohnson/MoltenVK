@@ -499,6 +499,15 @@ void MVKPhysicalDevice::getFeatures(VkPhysicalDeviceFeatures2* features) {
 				shaderIntFuncsFeatures->shaderIntegerFunctions2 = true;
 				break;
 			}
+			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR: {
+				auto* accelStructFeatures = (VkPhysicalDeviceAccelerationStructureFeaturesKHR*)next;
+				accelStructFeatures->accelerationStructure = true;
+				accelStructFeatures->accelerationStructureHostCommands = false;
+				accelStructFeatures->accelerationStructureCaptureReplay = false;
+				accelStructFeatures->accelerationStructureIndirectBuild = false;
+				accelStructFeatures->descriptorBindingAccelerationStructureUpdateAfterBind = false;
+				break;
+			}
 			default:
 				break;
 		}
@@ -3807,6 +3816,28 @@ VkAccelerationStructureCompatibilityKHR MVKDevice::getAccelerationStructureCompa
     return VK_ACCELERATION_STRUCTURE_COMPATIBILITY_INCOMPATIBLE_KHR;
 }
 
+void MVKDevice::addAddressableBufferRange(MVKBuffer* mvkBuff)
+{
+	if (!mvkBuff) { return; }
+
+	_gpuBufferAddressMap->addEntry({
+	    mvkBuff->getMTLBufferGPUAddress(),
+	    mvkBuff->getByteCount(),
+	    mvkBuff
+	});
+}
+
+void MVKDevice::removeAddressableBufferRange(MVKBuffer* mvkBuff)
+{
+	if (!mvkBuff) { return; }
+
+	_gpuBufferAddressMap->removeEntry({
+	    mvkBuff->getMTLBufferGPUAddress(),
+	    mvkBuff->getByteCount(),
+	    mvkBuff
+	});
+}
+
 #pragma mark Object lifecycle
 
 uint32_t MVKDevice::getVulkanMemoryTypeIndex(MTLStorageMode mtlStorageMode) {
@@ -4021,6 +4052,10 @@ MVKQueryPool* MVKDevice::createQueryPool(const VkQueryPoolCreateInfo* pCreateInf
 			return new MVKTimestampQueryPool(this, pCreateInfo);
 		case VK_QUERY_TYPE_PIPELINE_STATISTICS:
 			return new MVKPipelineStatisticsQueryPool(this, pCreateInfo);
+		case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR:
+			return new MVKAccelerationStructureCompactedSizeQueryPool(this, pCreateInfo);
+		case VK_QUERY_TYPE_ACCELERATION_STRUCTURE_SERIALIZATION_SIZE_KHR:
+			return new MVKAccelerationStructureSerializationSizeQueryPool(this, pCreateInfo);
 		default:
             return new MVKUnsupportedQueryPool(this, pCreateInfo);
 	}
@@ -4063,7 +4098,7 @@ void MVKDevice::destroyPipelineLayout(MVKPipelineLayout* mvkPLL,
 
 MVKAccelerationStructure* MVKDevice::createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR* pCreateInfo,
                                                                  const VkAllocationCallbacks*                pAllocator) {
-    return addAccelerationStructure(new MVKAccelerationStructure(this));
+    return addAccelerationStructure(new MVKAccelerationStructure(this, pCreateInfo));
 }
 
 void MVKDevice::destroyAccelerationStructure(MVKAccelerationStructure*     mvkAccStruct,
@@ -4301,11 +4336,6 @@ MVKBuffer* MVKDevice::addBuffer(MVKBuffer* mvkBuff) {
 	_resources.push_back(mvkBuff);
 	if (mvkIsAnyFlagEnabled(mvkBuff->getUsage(), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)) {
 		_gpuAddressableBuffers.push_back(mvkBuff);
-        _gpuBufferAddressMap->addEntry({
-            mvkBuff->getMTLBufferGPUAddress(),
-            mvkBuff->getByteCount(),
-            mvkBuff
-        });
 	}
 	return mvkBuff;
 }
@@ -4376,27 +4406,76 @@ void MVKDevice::removeTimelineSemaphore(MVKTimelineSemaphore* sem4, uint64_t val
 	mvkRemoveFirstOccurance(_awaitingTimelineSem4s, make_pair(sem4, value));
 }
 
+void MVKDevice::reloadAccelerationStructuresToGPU() {
+	if (_blasRegistryCPU.empty()) { return; }
+
+	if (!_blasRegistryGPU) {
+		constexpr uint32_t initialSize = 64 * sizeof(VkDeviceAddress);
+		_blasRegistryGPU = [getPhysicalDevice()->_mtlDevice newBufferWithLength: initialSize
+																	 options: MTLResourceStorageModeShared];
+	}
+
+	// Resize
+	if (_blasRegistryGPU.length < _blasRegistryCPU.size() * sizeof(VkDeviceAddress)) {
+		auto newSize = _blasRegistryCPU.size() * sizeof(VkDeviceAddress);
+		_blasRegistryGPU = [getPhysicalDevice()->_mtlDevice newBufferWithLength: newSize
+																	 options: MTLResourceStorageModeShared];
+	}
+
+	// Copy the CPU registry to the GPU registry.
+	std::transform(_blasRegistryCPU.begin(), _blasRegistryCPU.end(),
+			   (VkDeviceAddress*)_blasRegistryGPU.contents,
+			   [](auto* accStruct) { return accStruct->getDeviceAddress(); });
+}
+
+MVKArrayRef<MVKAccelerationStructure*> MVKDevice::getBlasRegistryCPU()
+{
+	return MVKArrayRef<MVKAccelerationStructure*>(_blasRegistryCPU.data(), _blasRegistryCPU.size());
+}
+
 MVKAccelerationStructure* MVKDevice::addAccelerationStructure(MVKAccelerationStructure* accStruct) {
-    std::pair<uint64_t, MVKAccelerationStructure*> accStructMemoryPair = std::make_pair(_nextValidAccStructureAddress, accStruct);
-    _gpuAccStructAddressMap.insert(accStructMemoryPair);
-    accStruct->setDeviceAddress(_nextValidAccStructureAddress);
-    _nextValidAccStructureAddress += accStruct->getMTLSize();
+    _gpuAccStructAddressMap.emplace(accStruct->getDeviceAddress(), accStruct);
+
+    _blasRegistryCPU.push_back(accStruct);
+    reloadAccelerationStructuresToGPU();
     return accStruct;
 }
 
 void MVKDevice::removeAccelerationStructure(MVKAccelerationStructure* accStruct) {
-    std::unordered_map<uint64_t, MVKAccelerationStructure*>::iterator accStructIt = _gpuAccStructAddressMap.find(accStruct->getDeviceAddress());
-    uint64_t addressOffset = accStructIt->second->getMTLSize();
-    _gpuAccStructAddressMap.erase(accStructIt);
+	auto registryFindIt = std::find(_blasRegistryCPU.begin(), _blasRegistryCPU.end(), accStruct);
+	if (registryFindIt != _blasRegistryCPU.end()) {
+		_blasRegistryCPU.erase(registryFindIt);
+	}
     
-    // This can lead to fragmentation over time, so I'll just push all keys after this back
-    // This, however is also another performance issue
-    for(auto it = accStructIt; it != _gpuAccStructAddressMap.end(); it++)
-    {
-        auto extractedAccStruct = _gpuAccStructAddressMap.extract(it->first);
-        extractedAccStruct.key() = it->first - addressOffset;
-        _gpuAccStructAddressMap.insert(std::move(extractedAccStruct));
-        _gpuAccStructAddressMap.erase(it->first);
+	// Remove from the GPU address map.
+	lock_guard<mutex> lock(_rezLock);
+	_gpuAccStructAddressMap.erase(accStruct->getDeviceAddress());
+
+	reloadAccelerationStructuresToGPU();
+
+    uint64_t removedAddress = accStruct->getDeviceAddress();
+    auto findIt = _gpuAccStructAddressMap.find(removedAddress);
+
+    if (findIt == _gpuAccStructAddressMap.end()) {
+        return;
+    }
+
+    uint64_t addressOffset = findIt->second->getMTLSize();
+    _gpuAccStructAddressMap.erase(findIt); // Erase the element
+
+    std::vector<std::pair<uint64_t, MVKAccelerationStructure*>> elementsToUpdate;
+    for (const auto& [address, acc] : _gpuAccStructAddressMap) {
+        if (address > removedAddress) {
+            elementsToUpdate.push_back({address, acc});
+        }
+    }
+
+    for (const auto& [oldAddress, acc] : elementsToUpdate) {
+        _gpuAccStructAddressMap.erase(oldAddress);
+        uint64_t newAddress = oldAddress - addressOffset;
+        _gpuAccStructAddressMap[newAddress] = acc;
+        // TODO: Do I need to update the address within the accStruct object itself
+        // acc->setDeviceAddress(newAddress);
     }
 }
 
