@@ -142,6 +142,8 @@ public:
 	/** Returns a MTLComputePipelineState for filling MTLInstanceDescriptors necessary for TLAS building. */
     id<MTLComputePipelineState> getFillMTLInstanceDescriptorComputePipelineState();
 
+    id<MTLComputePipelineState> getAccelerationStructureTestComputePipelineState();
+
 	/** Deletes all the internal resources. */
 	void clear();
 

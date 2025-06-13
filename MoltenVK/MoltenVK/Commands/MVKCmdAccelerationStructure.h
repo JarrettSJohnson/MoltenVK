@@ -40,12 +40,18 @@ public:
     
     void encode(MVKCommandEncoder* cmdEncoder) override;
 protected:
+
+    struct FillMTLInstanceDescriptorsParams
+    {
+        uint32_t instanceCount;            // Number of instances to fill.
+        uint32_t blasAddressLookupCount;   // Number of BLAS addresses to look up.
+    };
+
     struct MVKAccelerationStructureBuildInfo
     {
         VkAccelerationStructureBuildGeometryInfoKHR info;
         MVKSmallVector<VkAccelerationStructureGeometryKHR, 3> geometries;
         MVKSmallVector<VkAccelerationStructureBuildRangeInfoKHR, 3> ranges;
-        MVKBuffer* instanceBuffer;
     };
 protected:
     MVKCommandTypePool<MVKCommand>* getTypePool(MVKCommandPool* cmdPool) override;

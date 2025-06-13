@@ -4898,12 +4898,53 @@ void MVKDevice::removeTimelineSemaphore(MVKTimelineSemaphore* sem4, uint64_t val
 	mvkRemoveFirstOccurance(_awaitingTimelineSem4s, make_pair(sem4, value));
 }
 
+void MVKDevice::reloadAccelerationStructuresToGPU() {
+	if (_blasRegistryCPU.empty()) { return; }
+
+	if (!_blasRegistryGPU) {
+		constexpr uint32_t initialSize = 64 * sizeof(VkDeviceAddress);
+		_blasRegistryGPU = [getPhysicalDevice()->_mtlDevice newBufferWithLength: initialSize
+																	 options: MTLResourceStorageModeShared];
+	}
+
+	// Resize
+	if (_blasRegistryGPU.length < _blasRegistryCPU.size() * sizeof(VkDeviceAddress)) {
+		auto newSize = _blasRegistryCPU.size() * sizeof(VkDeviceAddress);
+		_blasRegistryGPU = [getPhysicalDevice()->_mtlDevice newBufferWithLength: newSize
+																	 options: MTLResourceStorageModeShared];
+	}
+
+	// Copy the CPU registry to the GPU registry.
+	std::transform(_blasRegistryCPU.begin(), _blasRegistryCPU.end(),
+			   (VkDeviceAddress*)_blasRegistryGPU.contents,
+			   [](auto* accStruct) { return accStruct->getDeviceAddress(); });
+}
+
+MVKArrayRef<const MVKAccelerationStructure* const> MVKDevice::getBlasRegistryCPU() const
+{
+	return MVKArrayRef<const MVKAccelerationStructure* const>(_blasRegistryCPU.data(), _blasRegistryCPU.size());
+}
+
 MVKAccelerationStructure* MVKDevice::addAccelerationStructure(MVKAccelerationStructure* accStruct) {
     _gpuAccStructAddressMap.emplace(accStruct->getDeviceAddress(), accStruct);
+
+    _blasRegistryCPU.push_back(accStruct);
+    reloadAccelerationStructuresToGPU();
     return accStruct;
 }
 
 void MVKDevice::removeAccelerationStructure(MVKAccelerationStructure* accStruct) {
+	auto registryFindIt = std::find(_blasRegistryCPU.begin(), _blasRegistryCPU.end(), accStruct);
+	if (registryFindIt != _blasRegistryCPU.end()) {
+		_blasRegistryCPU.erase(registryFindIt);
+	}
+
+	// Remove from the GPU address map.
+	lock_guard<mutex> lock(_rezLock);
+	_gpuAccStructAddressMap.erase(accStruct->getDeviceAddress());
+
+	reloadAccelerationStructuresToGPU();
+
     uint64_t removedAddress = accStruct->getDeviceAddress();
     auto findIt = _gpuAccStructAddressMap.find(removedAddress);
 

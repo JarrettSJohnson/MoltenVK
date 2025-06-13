@@ -493,6 +493,8 @@ public:
 	/** Returns a new MTLComputePipelineState for filling MTLInstanceDescriptors necessary for TLAS building. */
 	id<MTLComputePipelineState> newFillMTLInstanceDescriptorComputePipelineState(MVKVulkanAPIDeviceObject* owner);
 
+    id<MTLComputePipelineState> newAccelerationStructureTestComputePipelineState(MVKVulkanAPIDeviceObject* owner);
+
 #pragma mark Construction
 
 	MVKCommandResourceFactory(MVKDevice* device);

@@ -912,6 +912,12 @@ public:
 #endif
 	}
 
+	id<MTLBuffer> getBlasRegistryGPU() {
+		return _blasRegistryGPU;
+	}
+
+	MVKArrayRef<const MVKAccelerationStructure* const> getBlasRegistryCPU() const;
+
 #pragma mark Construction
 
 	/** Constructs an instance on the specified physical device. */
@@ -943,6 +949,8 @@ public:
 		return _barrierFences[stage][index];
 	}
 
+	MVKAccelerationStructure* accelerationStructureTest{};
+
 protected:
 	friend class MVKDeviceTrackingMixin;
 
@@ -969,6 +977,7 @@ protected:
 														   VkDescriptorSetLayoutSupport* pSupport,
 														   VkDescriptorSetVariableDescriptorCountLayoutSupport* pVarDescSetCountSupport);
 	bool readGPUCapturePipe() { char dummy; return _capturePipeFileDesc >= 0 && read(_capturePipeFileDesc, &dummy, 1) > 0; };
+	void reloadAccelerationStructuresToGPU();
 
 	MVKPhysicalDevice* _physicalDevice = nullptr;
 	MVKExtensionList _enabledExtensions;
@@ -991,6 +1000,8 @@ protected:
 	MVKSmallVector<MVKResource*> _resources;
 	MVKSmallVector<MVKBuffer*> _gpuAddressableBuffers;
     MVKAddressMap* _gpuBufferAddressMap;
+	MVKSmallVector<MVKAccelerationStructure*> _blasRegistryCPU; // Shared array to hold all BLASs on the CPU
+	id<MTLBuffer> _blasRegistryGPU; // Shared buffer to hold all BLASs on the GPU
     uint64_t _nextValidAccStructureAddress = 0;
     std::unordered_map<uint64_t, MVKAccelerationStructure*> _gpuAccStructAddressMap;
 	MVKSmallVector<MVKPrivateDataSlot*> _privateDataSlots;

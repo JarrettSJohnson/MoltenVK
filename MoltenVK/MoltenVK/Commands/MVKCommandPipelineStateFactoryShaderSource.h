@@ -564,18 +564,14 @@ typedef struct {                                                                
 typedef struct {                                                                                                \n\
   uint32_t instanceCount;                                                                                       \n\
   uint32_t blasAddressLookupCount;                                                                              \n\
-} fillMTLInstanceDescriptorsParams;                                                                             \n\
+} FillMTLInstanceDescriptorsParams;                                                                             \n\
                                                                                                                 \n\
 kernel void fillMTLInstanceDescriptors(device const VkAccelerationStructureInstanceKHR* srcInstances [[ buffer(0)]], \n\
                                        device MTLAccelerationStructureInstanceDescriptor* destDescriptors [[ buffer(1)]], \n\
                                        device const uint64_t* blasAddressLookup [[ buffer(2)]],                \n\
-                                       constant fillMTLInstanceDescriptorsParams& params [[ buffer(3)]],       \n\
+                                       constant FillMTLInstanceDescriptorsParams& params [[ buffer(3)]],       \n\
                                        uint instanceIdx [[ thread_position_in_grid ]]) {                       \n\
     if (instanceIdx >= params.instanceCount) { return; }                                                       \n\
-                                                                                                               \n\
-    device MTLAccelerationStructureInstanceDescriptor& testInstance = destDescriptors[instanceIdx];            \n\
-    testInstance.accelerationStructureIndex = 0;                                                               \n\
-    return;                                                                                                    \n\
                                                                                                                \n\
     device const VkAccelerationStructureInstanceKHR& vkInstance = srcInstances[instanceIdx];                   \n\
                                                                                                                \n\
@@ -589,6 +585,9 @@ kernel void fillMTLInstanceDescriptors(device const VkAccelerationStructureInsta
                                                                                                                \n\
     device MTLAccelerationStructureInstanceDescriptor& mtlInstance = destDescriptors[instanceIdx];             \n\
     mtlInstance.accelerationStructureIndex = mtlBLASIndex;                                                     \n\
+    mtlInstance.intersectionFunctionTableOffset = 0;  // TODO: raytracing_pipeline_KHR                         \n\
+    mtlInstance.mask = 0xFFFFFFFF;                                                                             \n\
+    mtlInstance.options = MTLAccelerationStructureInstanceOptionOpaque;                                        \n\
                                                                                                                \n\
     for (int col = 0; col < 4; ++col) {                                                                        \n\
         // Loop through the 3 rows of the destination (Metal) matrix                                           \n\
@@ -598,5 +597,10 @@ kernel void fillMTLInstanceDescriptors(device const VkAccelerationStructureInsta
         }                                                                                                      \n\
     }                                                                                                          \n\
 }                                                                                                              \n\
+                                                                                                               \n\
+kernel void accStrTest(metal::raytracing::acceleration_structure<> accStr [[buffer(0)]],                       \n\
+                       uint idx [[thread_position_in_grid]]) {                                                 \n\
+}                                                                                                              \n\
+                                                                                                               \n\
 ";
 

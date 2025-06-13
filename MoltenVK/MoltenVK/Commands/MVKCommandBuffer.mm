@@ -1514,6 +1514,7 @@ NSString* mvkMTLComputeCommandEncoderLabel(MVKCommandUse cmdUse) {
         case kMVKCommandUseAccumOcclusionQuery:             return @"Post-render-pass occlusion query accumulation ComputeEncoder";
         case kMVKCommandConvertUint8Indices:                return @"Convert Uint8 indices to Uint16 ComputeEncoder";
         case kMVKCommandUseFillMTLInstanceBuffer:           return @"Fill MTLInstanceBuffer ComputeEncoder";
+		case kMVKCommandUseAccelerationStructureTest:       return @"Acceleration Structure Test ComputeEncoder";
         default:                                            return @"Unknown Use ComputeEncoder";
     }
 }

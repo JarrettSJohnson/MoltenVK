@@ -106,6 +106,7 @@ typedef enum : uint8_t {
     kMVKCommandUseCopyMemoryToAccelerationStructure, /**< vkCmdCopyMemoryToAccelerationStructure - Copies and deserializes an acceleration structure from a buffer. */
     kMVKCommandUseWriteAccelerationStructuresProperties, /**< vkCmdWriteAccelerationStructuresPropertiesKHR - Copies various acceleration structure properties to a buffer. */
     kMVKCommandUseFillMTLInstanceBuffer, /**< vkCmdFillMTLInstanceBuffer - Fills a Metal instance descriptor buffer. */
+	kMVKCommandUseAccelerationStructureTest,
 } MVKCommandUse;
 
 /** Represents a given stage of a graphics pipeline. */

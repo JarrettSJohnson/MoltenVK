@@ -622,6 +622,10 @@ id<MTLComputePipelineState> MVKCommandResourceFactory::newFillMTLInstanceDescrip
 	return newMTLComputePipelineState("fillMTLInstanceDescriptors", owner);
 }
 
+id<MTLComputePipelineState> MVKCommandResourceFactory::newAccelerationStructureTestComputePipelineState(MVKVulkanAPIDeviceObject* owner) {
+	return newMTLComputePipelineState("accStrTest", owner);
+}
+
 #pragma mark Support methods
 
 // Returns the retained MTLFunction with the name.

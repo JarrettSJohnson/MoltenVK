@@ -173,6 +173,10 @@ id<MTLComputePipelineState> MVKCommandEncodingPool::getFillMTLInstanceDescriptor
     MVK_ENC_REZ_ACCESS(_mtlFillMTLInstanceDescriptorComputePipelineState, newFillMTLInstanceDescriptorComputePipelineState(_commandPool));
 }
 
+id<MTLComputePipelineState> MVKCommandEncodingPool::getAccelerationStructureTestComputePipelineState() {
+    MVK_ENC_REZ_ACCESS(_mtlFillMTLInstanceDescriptorComputePipelineState, newAccelerationStructureTestComputePipelineState(_commandPool));
+}
+
 void MVKCommandEncodingPool::clear() {
 	lock_guard<mutex> lock(_lock);
 	destroyMetalResources();
