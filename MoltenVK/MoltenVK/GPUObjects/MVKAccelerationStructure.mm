@@ -197,7 +197,7 @@ MTLAccelerationStructureDescriptor* MVKAccelerationStructure::populateMTLDescrip
             instance.instanceCount = rangeInfos ? rangeInfos->primitiveCount : *maxPrimitiveCounts;
             instance.instanceDescriptorType = MTLAccelerationStructureInstanceDescriptorTypeDefault;
             instance.instanceDescriptorBufferOffset = 0;
-            instance.instanceDescriptorStride = sizeof(MTLAccelerationStructureInstanceDescriptor);
+            instance.instanceDescriptorStride = sizeof(MTLAccelerationStructureUserIDInstanceDescriptor);
 
             descriptor = instance;
         } break;

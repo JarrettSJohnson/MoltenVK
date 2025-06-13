@@ -130,8 +130,8 @@ void MVKCmdBuildAccelerationStructure::encode(MVKCommandEncoder* cmdEncoder) {
                     inVkInstancesBuffer = mvkDevice->getBufferAtAddress(instancesGeometryData.data.deviceAddress);
                 }
 
-                // Buffer[1]: MTLAccelerationStructureInstanceDescriptor buffer
-                NSUInteger instanceDescriptorSize = sizeof(MTLAccelerationStructureInstanceDescriptor) * instanceCount;
+                // Buffer[1]: MTLAccelerationStructureUserIDInstanceDescriptor buffer
+                NSUInteger instanceDescriptorSize = sizeof(MTLAccelerationStructureUserIDInstanceDescriptor) * instanceCount;
                 auto* outMTLInstanceDescriptorBuffer = cmdEncoder->getTempMTLBuffer(instanceDescriptorSize);
 
                 // Buffer[2]: BLAS lookup buffer
